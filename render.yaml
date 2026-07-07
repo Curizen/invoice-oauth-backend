@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: invoice-oauth-starter
+    env: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # All other required vars (DATABASE_URL, MASTER_KEY_HEX,
+      # GOOGLE_CLIENT_ID/SECRET, MS_CLIENT_ID/SECRET, INTERNAL_API_KEY,
+      # SUPABASE_URL, SUPABASE_ANON_KEY, APP_URL, ENABLE_SYNC,
+      # BASE_CURRENCY) must be set as secrets/env vars in the Render
+      # dashboard — see DEPLOYMENT.md for the full table.
