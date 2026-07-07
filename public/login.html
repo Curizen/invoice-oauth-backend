@@ -86,12 +86,35 @@
   .msg { font-size: 0.85rem; margin-top: 0.7rem; min-height: 1.1em; }
   .msg.error { color: #c0392b; }
   .msg.ok { color: #1e7e34; }
+  .otp-intro { font-size: 0.9rem; color: #444; margin: 0 0 0.8rem; }
+  .otp-intro strong { color: #111; }
+  input#otp-code {
+    letter-spacing: 0.3em;
+    text-align: center;
+    font-size: 1.1rem;
+  }
+  .otp-links {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-top: 0.7rem;
+  }
+  .link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #555;
+    cursor: pointer;
+    font-size: 0.8rem;
+    text-decoration: underline;
+  }
+  .link-btn:disabled { color: #bbb; cursor: default; text-decoration: none; }
 </style>
 </head>
 <body>
   <div class="card">
     <h1>Invoice OAuth starter</h1>
-    <div class="tabs">
+    <div class="tabs" id="tabs">
       <button class="tab active" id="tab-signin" type="button">Sign in</button>
       <button class="tab" id="tab-signup" type="button">Sign up</button>
     </div>
@@ -102,9 +125,21 @@
       <button class="primary" type="submit" id="submit-btn">Sign in</button>
     </form>
 
+    <div id="otp-section" style="display:none">
+      <p class="otp-intro">We sent a 6-digit code to <strong id="otp-email"></strong></p>
+      <form id="otp-form">
+        <input type="text" id="otp-code" placeholder="000000" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" required />
+        <button class="primary" type="submit">Verify</button>
+      </form>
+      <div class="otp-links">
+        <button class="link-btn" id="otp-back" type="button">Use a different email</button>
+        <button class="link-btn" id="otp-resend" type="button">Resend code</button>
+      </div>
+    </div>
+
     <div class="msg" id="msg"></div>
 
-    <div class="divider">or</div>
+    <div class="divider" id="divider">or</div>
 
     <button class="google" id="google-btn" type="button">Continue with Google</button>
   </div>
@@ -115,16 +150,34 @@
     const cfg = await fetch('/config').then((r) => r.json());
     const supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      window.location.href = '/app.html';
-    }
-
     let mode = 'signin';
+    let pendingEmail = '';
+    let resendTimer = null;
     const tabSignin = document.getElementById('tab-signin');
     const tabSignup = document.getElementById('tab-signup');
     const submitBtn = document.getElementById('submit-btn');
     const msg = document.getElementById('msg');
+    const tabs = document.getElementById('tabs');
+    const authForm = document.getElementById('auth-form');
+    const otpSection = document.getElementById('otp-section');
+    const otpForm = document.getElementById('otp-form');
+    const otpCode = document.getElementById('otp-code');
+    const otpEmail = document.getElementById('otp-email');
+    const otpResend = document.getElementById('otp-resend');
+    const otpBack = document.getElementById('otp-back');
+    const divider = document.getElementById('divider');
+    const googleBtn = document.getElementById('google-btn');
+
+    function goToApp() {
+      const params = new URLSearchParams(window.location.search);
+      const onboard = params.get('onboard');
+      window.location.href = '/app.html' + (onboard ? `?onboard=${encodeURIComponent(onboard)}` : '');
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      goToApp();
+    }
 
     function setMode(next) {
       mode = next;
@@ -136,6 +189,99 @@
     }
     tabSignin.addEventListener('click', () => setMode('signin'));
     tabSignup.addEventListener('click', () => setMode('signup'));
+
+    function stopResendCooldown() {
+      if (resendTimer) clearInterval(resendTimer);
+      resendTimer = null;
+      otpResend.disabled = false;
+      otpResend.textContent = 'Resend code';
+    }
+
+    function startResendCooldown() {
+      let remaining = 60;
+      otpResend.disabled = true;
+      otpResend.textContent = `Resend code (${remaining}s)`;
+      if (resendTimer) clearInterval(resendTimer);
+      resendTimer = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          stopResendCooldown();
+        } else {
+          otpResend.textContent = `Resend code (${remaining}s)`;
+        }
+      }, 1000);
+    }
+
+    function showOtpStep(email) {
+      pendingEmail = email;
+      otpEmail.textContent = email;
+      otpCode.value = '';
+      tabs.style.display = 'none';
+      authForm.style.display = 'none';
+      divider.style.display = 'none';
+      googleBtn.style.display = 'none';
+      otpSection.style.display = '';
+      msg.textContent = '';
+      msg.className = 'msg';
+      startResendCooldown();
+      otpCode.focus();
+    }
+
+    function hideOtpStep() {
+      otpSection.style.display = 'none';
+      tabs.style.display = '';
+      authForm.style.display = '';
+      divider.style.display = '';
+      googleBtn.style.display = '';
+      stopResendCooldown();
+      pendingEmail = '';
+    }
+
+    otpBack.addEventListener('click', () => {
+      hideOtpStep();
+      setMode('signin');
+    });
+
+    otpForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.textContent = 'Verifying…';
+      msg.className = 'msg';
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: pendingEmail,
+        token: otpCode.value.trim(),
+        type: 'signup',
+      });
+
+      if (error || !data.session) {
+        msg.textContent = 'Invalid or expired code';
+        msg.className = 'msg error';
+        return;
+      }
+
+      goToApp();
+    });
+
+    otpResend.addEventListener('click', async () => {
+      if (otpResend.disabled) return;
+      msg.textContent = '';
+      msg.className = 'msg';
+
+      const { error } = await supabase.auth.resend({ type: 'signup', email: pendingEmail });
+
+      if (error) {
+        msg.textContent =
+          error.status === 429 || /rate limit/i.test(error.message)
+            ? 'Too many attempts, try again in a minute'
+            : error.message;
+        msg.className = 'msg error';
+        return;
+      }
+
+      msg.textContent = 'Code resent.';
+      msg.className = 'msg ok';
+      startResendCooldown();
+    });
 
     document.getElementById('auth-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -150,19 +296,21 @@
           : await supabase.auth.signUp({ email, password });
 
       if (error) {
+        if (mode === 'signin' && /email not confirmed/i.test(error.message)) {
+          showOtpStep(email);
+          return;
+        }
         msg.textContent = error.message;
         msg.className = 'msg error';
         return;
       }
 
       if (mode === 'signup' && !data.session) {
-        msg.textContent = 'Check your email to confirm your account, then sign in.';
-        msg.className = 'msg ok';
-        setMode('signin');
+        showOtpStep(email);
         return;
       }
 
-      window.location.href = '/app.html';
+      goToApp();
     });
 
     document.getElementById('google-btn').addEventListener('click', async () => {
