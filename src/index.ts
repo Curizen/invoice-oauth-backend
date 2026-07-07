@@ -28,10 +28,10 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        // public/*.html import the Supabase JS client as an ES module from esm.sh.
-        scriptSrcElem: ["'self'", 'https://esm.sh'],
-        // public/*.html have inline <style> blocks in <head>.
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://esm.sh'],
+        // public/*.html import Supabase JS from esm.sh AND have inline scripts
+        // that wire up the buttons — both need to be allowed.
+        scriptSrcElem: ["'self'", "'unsafe-inline'", 'https://esm.sh'],
         styleSrc: ["'self'", "'unsafe-inline'"],
         connectSrc: ["'self'", 'https://esm.sh', config.supabase.url],
         imgSrc: ["'self'", 'data:'],
