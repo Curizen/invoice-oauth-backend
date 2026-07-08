@@ -104,3 +104,7 @@ async function shutdown(signal: string) {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+import { startScheduler } from './pipeline/scheduler.js';
+if (process.env.ENABLE_SYNC === 'true') {
+       startScheduler();
+     }

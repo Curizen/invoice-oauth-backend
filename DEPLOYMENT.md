@@ -31,8 +31,8 @@ included `Dockerfile`.
 | `INTERNAL_API_KEY` | Shared secret n8n sends as `X-Internal-Key` on `/internal/*`. | **Yes** |
 | `SUPABASE_URL` | Supabase project URL, used for auth + surfaced (intentionally) via `/config`. | No |
 | `SUPABASE_ANON_KEY` | Supabase anon key — meant to be public, safe to expose via `/config`. | No |
-| `OPENAI_API_KEY` | Only required if `ENABLE_SYNC=true`. Not currently required. | **Yes** (if set) |
-| `ENABLE_SYNC` | **Must be `false` in production.** The external n8n workflow is the active pipeline; the in-process pipeline this flag would enable targets legacy column names and would double-process every mailbox if turned on before that's reconciled. | No |
+| `OPENAI_API_KEY` | Required if `ENABLE_SYNC=true` (the in-process pipeline calls OpenAI to extract invoice fields). | **Yes** (if set) |
+| `ENABLE_SYNC` | Enables the in-process invoice sync scheduler. The pipeline now writes to the real Supabase schema (vendors → invoices → anomaly/audit), so it is safe to turn on — **but only after deactivating the external n8n workflow.** Running both at once double-processes every mailbox (n8n and the in-process poller would each fetch, extract, upload, and save the same attachments). Pick exactly one active pipeline. | No |
 | `BASE_CURRENCY` | Default currency code (e.g. `USD`). No consumer yet; safe default. | No |
 
 ## 3. Run the migration
