@@ -26,7 +26,7 @@ export async function listNewMessages(
   sinceIso: string,
 ): Promise<GraphMessage[]> {
   const filter = encodeURIComponent(
-    `hasAttachments eq true and receivedDateTime gt ${sinceIso}`,
+    `receivedDateTime gt ${sinceIso} and hasAttachments eq true`,
   );
   const data = await graphGet<{ value: GraphMessage[] }>(
     connectionId,
