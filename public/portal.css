@@ -338,6 +338,10 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
 .badge.amber, .badge.pending, .badge.expiring { background: #fdf1dc; color: #92620b; }
 .badge.red, .badge.overdue, .badge.expired, .badge.reauth_required { background: #fbe6e4; color: #b3261e; }
 .badge.gray, .badge.cancelled, .badge.inactive, .badge.other { background: #efe9db; color: #7a7266; }
+.badge.email { background: #eaf2fb; color: #2b4a7d; }
+.badge.voice { background: rgba(232, 147, 74, 0.16); color: var(--accent-dark); }
+.badge.upload { background: #e3f6ee; color: var(--success-dark); }
+.badge.backfill { background: #efe9db; color: #7a7266; }
 
 /* ---------- Tabs (pill) ---------- */
 .tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }

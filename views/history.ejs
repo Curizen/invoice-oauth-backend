@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<%- include('partials/head', { title: 'History' }) %>
+<style>
+  .filters { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+  .filters select, .filters input[type="text"] {
+    padding: 9px 10px; border: 1px solid #ddd3bf; border-radius: 10px; font-size: 13.5px; font-family: var(--font-body);
+  }
+  .filters input[type="text"] { min-width: 220px; }
+  #h-more { display: block; margin: 14px auto 0; }
+  #h-count { color: var(--subtitle); font-size: 13px; margin-bottom: 10px; }
+  td a.file-link { color: var(--accent-dark); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<%- include('partials/shell-open') %>
+      <div class="page-head">
+        <div>
+          <h1>Invoice History</h1>
+          <p class="subtitle">Every invoice logged, however it arrived — email sync, invoice chat, or the upload/camera button.</p>
+        </div>
+      </div>
+
+      <div class="filters">
+        <select id="h-source">
+          <option value="">All sources</option>
+          <option value="email">Email</option>
+          <option value="voice">Invoice chat</option>
+          <option value="upload">Upload / camera</option>
+          <option value="backfill">Backfill (n8n)</option>
+        </select>
+        <input id="h-search" type="text" placeholder="Search vendor…" />
+      </div>
+
+      <div class="card">
+        <p id="h-count" class="muted-text"></p>
+        <div id="h-list"></div>
+        <button id="h-more" class="btn secondary" type="button" style="display:none">Load more</button>
+      </div>
+<%- include('partials/shell-close') %>
+
+<script type="module" src="/js/history.js"></script>
+</body>
+</html>

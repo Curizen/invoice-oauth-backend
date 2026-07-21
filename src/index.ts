@@ -16,6 +16,7 @@ import { uploadRoutes } from './uploads.routes.js';
 import { subscriptionRoutes } from './subscriptions.routes.js';
 import { reportRoutes } from './reports.routes.js';
 import { employeeRoutes } from './employees.routes.js';
+import { historyRoutes } from './history.routes.js';
 import { internalApi } from './internalApi.js';
 import { listGmailInvoiceCandidates, listOutlookInvoiceCandidates } from './providerApis.js';
 import { listConnections, pool } from './db.js';
@@ -92,6 +93,7 @@ const PAGES: Record<string, string> = {
   '/reports': 'reports',
   '/subscriptions': 'subscriptions',
   '/voice': 'voice',
+  '/history': 'history',
 };
 for (const [route, view] of Object.entries(PAGES)) {
   app.get(route, (req, res) => res.render(view));
@@ -133,6 +135,7 @@ app.use(uploadRoutes);
 app.use('/api', subscriptionRoutes);
 app.use('/api', reportRoutes);
 app.use('/api', employeeRoutes);
+app.use('/api', historyRoutes);
 
 // Smoke test: prove background-style API access works with stored tokens.
 app.get('/test/:connectionId', async (req, res) => {

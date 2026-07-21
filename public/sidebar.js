@@ -18,6 +18,8 @@ const ICONS = {
     '<path d="M4 20V10" /><path d="M11 20V4" /><path d="M18 20v-7" /><path d="M3 20h18" />',
   employees:
     '<circle cx="9" cy="8" r="3" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><circle cx="17" cy="9" r="2.4" /><path d="M15.5 12.2A4.5 4.5 0 0 1 20.5 16" />',
+  history:
+    '<circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /><path d="M3.5 9.5A9 9 0 0 1 12 3" />',
 };
 
 const NAV_ITEMS = [
@@ -26,6 +28,7 @@ const NAV_ITEMS = [
   { key: 'subscriptions', label: 'Subscriptions', href: '/subscriptions', icon: 'subscriptions' },
   { key: 'reports', label: 'Reports', href: '/reports', icon: 'reports' },
   { key: 'employees', label: 'Employees', href: '/employees', icon: 'employees' },
+  { key: 'history', label: 'History', href: '/history', icon: 'history' },
 ];
 
 function svgIcon(name) {
