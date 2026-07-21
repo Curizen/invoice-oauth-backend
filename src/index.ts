@@ -64,7 +64,7 @@ app.use(lightLimiter);
 // can't post megabytes at ordinary endpoints. body-parser skips bodies a
 // previous instance already parsed, so the global one is a no-op on these.
 app.use(
-  ['/upload-invoice', '/voice-invoice', '/employees/from-contract', '/employees/:id/contract'],
+  ['/upload-invoice', '/voice-invoice', '/api/employees/from-contract', '/api/employees/:id/contract'],
   express.json({ limit: '30mb' }),
 );
 app.use(express.json({ limit: '200kb' }));
