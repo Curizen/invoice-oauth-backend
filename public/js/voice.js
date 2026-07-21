@@ -196,7 +196,6 @@ micBtn.addEventListener('click', async () => {
     recorder.onstop = async () => {
       recording = false;
       micBtn.classList.remove('recording');
-      micBtn.textContent = '●';
       stream.getTracks().forEach((t) => t.stop());
       if (!chunks.length) return;
       const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
@@ -207,7 +206,6 @@ micBtn.addEventListener('click', async () => {
     recorder.start();
     recording = true;
     micBtn.classList.add('recording');
-    micBtn.textContent = '■';
   } catch (err) {
     bubble('err', 'Could not access the microphone.');
   }
