@@ -193,6 +193,25 @@ $('c-upload').addEventListener('click', async () => {
   }
 });
 
+// Shapes the currently-saved employee record like a fresh AI extraction, so
+// "Edit contract details" can reuse the same review panel + save path
+// without needing to re-upload the PDF.
+function employeeAsReviewFields() {
+  return {
+    employee_name: employee.name,
+    role: employee.role,
+    salary_amount: employee.salary,
+    salary_currency: employee.salary_currency,
+    notice_period: employee.notice_period,
+    start_date: employee.contract_start,
+    end_date: employee.contract_type === 'indefinite' ? null : employee.contract_end,
+    probation_end: employee.probation_end,
+    vacation_days: employee.vacation_days_allowed,
+    sick_days: employee.sick_days_allowed,
+    indefinite: employee.contract_type === 'indefinite',
+  };
+}
+
 function showReview(x) {
   $('r-name').value = x.employee_name ?? employee.name;
   $('r-role').value = x.role ?? employee.role ?? '';
@@ -201,15 +220,19 @@ function showReview(x) {
   $('r-notice').value = x.notice_period ?? '';
   $('r-start').value = x.start_date ?? '';
   $('r-end').value = x.end_date ?? '';
-  // No end date found in the contract → suggest indefinite-term.
-  $('r-indef').checked = !x.end_date;
-  $('r-end').disabled = !x.end_date;
+  // Explicit `indefinite` (editing current values) wins; otherwise fall back
+  // to "no end date found in the contract → suggest indefinite-term".
+  const indefinite = x.indefinite ?? !x.end_date;
+  $('r-indef').checked = indefinite;
+  $('r-end').disabled = indefinite;
   $('r-probation').value = x.probation_end ?? '';
   $('r-vacation').value = x.vacation_days ?? '';
   $('r-sick').value = x.sick_days ?? '';
   $('review').style.display = '';
   $('review').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
+
+$('c-edit').addEventListener('click', () => showReview(employeeAsReviewFields()));
 
 $('r-cancel').addEventListener('click', () => { $('review').style.display = 'none'; });
 
