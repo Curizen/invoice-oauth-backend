@@ -47,7 +47,7 @@ function showErr(msg) { errEl.textContent = msg; errEl.style.display = msg ? 'bl
 function fmtDate(d) { return d ? String(d).slice(0, 10) : '—'; }
 
 async function loadAlerts() {
-  const res = await authedFetch('/employees/alerts');
+  const res = await authedFetch('/api/employees/alerts');
   if (!res.ok) return;
   const alerts = await res.json();
   alertsEl.innerHTML = '';
@@ -69,7 +69,7 @@ function contractBadge(e) {
 }
 
 async function load() {
-  const res = await authedFetch('/employees');
+  const res = await authedFetch('/api/employees');
   const employees = await res.json();
   listEl.innerHTML = '';
   if (!Array.isArray(employees) || employees.length === 0) {
@@ -100,7 +100,7 @@ async function add() {
   const name = nameEl.value.trim();
   if (!name) { showErr('Name is required.'); return; }
   addBtn.disabled = true;
-  const res = await authedFetch('/employees', {
+  const res = await authedFetch('/api/employees', {
     method: 'POST',
     body: JSON.stringify({
       name,
@@ -146,7 +146,7 @@ fileEl.addEventListener('change', async () => {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
-    const res = await authedFetch('/employees/from-contract', {
+    const res = await authedFetch('/api/employees/from-contract', {
       method: 'POST',
       body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/pdf', dataBase64 }),
     });

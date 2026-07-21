@@ -81,7 +81,7 @@ function renderContract(data) {
     dl.onclick = async (ev) => {
       ev.preventDefault();
       // fetch with the auth header, then hand the blob to the browser.
-      const res = await authedFetch(`/employees/${employeeId}/contract`);
+      const res = await authedFetch(`/api/employees/${employeeId}/contract`);
       if (!res.ok) return;
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -149,7 +149,7 @@ function renderSalary(data) {
 }
 
 async function load() {
-  const res = await authedFetch(`/employees/${employeeId}`);
+  const res = await authedFetch(`/api/employees/${employeeId}`);
   if (!res.ok) { window.location.href = '/employees'; return; }
   const data = await res.json();
   employee = data.employee;
@@ -174,7 +174,7 @@ $('c-upload').addEventListener('click', async () => {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
-    const res = await authedFetch(`/employees/${employeeId}/contract`, {
+    const res = await authedFetch(`/api/employees/${employeeId}/contract`, {
       method: 'POST',
       body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/pdf', dataBase64 }),
     });
@@ -234,7 +234,7 @@ $('r-confirm').addEventListener('click', async () => {
     sick_days_allowed: Number($('r-sick').value || 0),
   };
   if ($('r-salary').value !== '') body.salary = Number($('r-salary').value);
-  const res = await authedFetch(`/employees/${employeeId}`, { method: 'PATCH', body: JSON.stringify(body) });
+  const res = await authedFetch(`/api/employees/${employeeId}`, { method: 'PATCH', body: JSON.stringify(body) });
   $('r-confirm').disabled = false;
   if (!res.ok) { const d = await res.json().catch(() => ({})); showMsg($('r-err'), d.error || 'Failed to save.'); return; }
   $('review').style.display = 'none';
@@ -246,7 +246,7 @@ async function addLeave(kind, dateEl, daysEl, errEl) {
   showMsg(errEl, '');
   const days = Number(daysEl.value);
   if (!days || days <= 0) { showMsg(errEl, 'Enter the number of days.'); return; }
-  const res = await authedFetch(`/employees/${employeeId}/leaves`, {
+  const res = await authedFetch(`/api/employees/${employeeId}/leaves`, {
     method: 'POST',
     body: JSON.stringify({ kind, on_date: dateEl.value || null, days }),
   });
@@ -255,7 +255,7 @@ async function addLeave(kind, dateEl, daysEl, errEl) {
   await load();
 }
 async function deleteLeave(id) {
-  await authedFetch(`/employees/${employeeId}/leaves/${id}`, { method: 'DELETE' });
+  await authedFetch(`/api/employees/${employeeId}/leaves/${id}`, { method: 'DELETE' });
   await load();
 }
 $('v-add').addEventListener('click', () => addLeave('vacation', $('v-date'), $('v-days'), $('v-err')));
@@ -266,7 +266,7 @@ $('b-add').addEventListener('click', async () => {
   showMsg($('b-err'), '');
   const amount = Number($('b-amount').value);
   if (!Number.isFinite(amount) || amount <= 0) { showMsg($('b-err'), 'Enter a bonus amount.'); return; }
-  const res = await authedFetch(`/employees/${employeeId}/bonuses`, {
+  const res = await authedFetch(`/api/employees/${employeeId}/bonuses`, {
     method: 'POST',
     body: JSON.stringify({ on_date: $('b-date').value || null, amount, note: $('b-note').value.trim() || null }),
   });
@@ -275,7 +275,7 @@ $('b-add').addEventListener('click', async () => {
   await load();
 });
 async function deleteBonus(id) {
-  await authedFetch(`/employees/${employeeId}/bonuses/${id}`, { method: 'DELETE' });
+  await authedFetch(`/api/employees/${employeeId}/bonuses/${id}`, { method: 'DELETE' });
   await load();
 }
 
@@ -284,7 +284,7 @@ $('p-save').addEventListener('click', async () => {
   showMsg($('p-err'), '');
   const salary = Number($('p-new').value);
   if (!Number.isFinite(salary) || salary < 0) { showMsg($('p-err'), 'Enter a valid salary.'); return; }
-  const res = await authedFetch(`/employees/${employeeId}`, { method: 'PATCH', body: JSON.stringify({ salary }) });
+  const res = await authedFetch(`/api/employees/${employeeId}`, { method: 'PATCH', body: JSON.stringify({ salary }) });
   if (!res.ok) { const d = await res.json().catch(() => ({})); showMsg($('p-err'), d.error || 'Failed to update.'); return; }
   $('p-new').value = '';
   await load();

@@ -43,7 +43,7 @@ function fmtDate(d) { return d ? String(d).slice(0, 10) : ''; }
 function badgeClass(status) { return status === 'active' ? 'active' : 'cancelled'; }
 
 async function load() {
-  const res = await authedFetch('/subscriptions');
+  const res = await authedFetch('/api/subscriptions');
   const subs = await res.json();
   listEl.innerHTML = '';
   if (!Array.isArray(subs) || subs.length === 0) {
@@ -89,7 +89,7 @@ async function add() {
   const name = nameEl.value.trim();
   if (!name) { showErr('Name is required.'); return; }
   addBtn.disabled = true;
-  const res = await authedFetch('/subscriptions', {
+  const res = await authedFetch('/api/subscriptions', {
     method: 'POST',
     body: JSON.stringify({ name, amount: Number(amountEl.value || 0), currency: currencyEl.value || 'USD', started_on: dateEl.value || null }),
   });
@@ -100,11 +100,11 @@ async function add() {
 }
 
 async function setStatus(id, status) {
-  await authedFetch(`/subscriptions/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+  await authedFetch(`/api/subscriptions/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
   await load();
 }
 async function remove(id) {
-  await authedFetch(`/subscriptions/${id}`, { method: 'DELETE' });
+  await authedFetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
   await load();
 }
 

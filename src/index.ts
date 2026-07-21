@@ -126,9 +126,13 @@ if (config.supabase.url) {
 app.use(connections);
 app.use(voiceRoutes);
 app.use(uploadRoutes);
-app.use(subscriptionRoutes);
-app.use(reportRoutes);
-app.use(employeeRoutes);
+// These three collide with the page routes above (e.g. GET /employees is both
+// the employees page and the JSON list endpoint) — the page route always won
+// since it's registered first, so the JSON API was unreachable. /api avoids
+// the collision without touching the page URLs.
+app.use('/api', subscriptionRoutes);
+app.use('/api', reportRoutes);
+app.use('/api', employeeRoutes);
 
 // Smoke test: prove background-style API access works with stored tokens.
 app.get('/test/:connectionId', async (req, res) => {

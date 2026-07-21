@@ -169,7 +169,7 @@ function fileToBase64(file) {
 // Recent anomalies panel: hidden until there is at least one flagged invoice.
 async function loadAnomalies() {
   try {
-    const res = await authedFetch('/anomalies');
+    const res = await authedFetch('/api/anomalies');
     const rows = await res.json();
     if (!res.ok || !Array.isArray(rows) || rows.length === 0) return;
     anomalyList.innerHTML = '';

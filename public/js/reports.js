@@ -45,7 +45,7 @@ function rowsTable(items, cur) {
 
 async function loadReport() {
   labelEl.textContent = 'Loading…';
-  const res = await authedFetch(`/reports?period=${period}`);
+  const res = await authedFetch(`/api/reports?period=${period}`);
   const d = await res.json();
   if (!res.ok) { labelEl.textContent = d.error || 'Failed to load.'; return; }
   labelEl.textContent = `Period: ${d.periodLabel}`;
@@ -90,7 +90,7 @@ sendBtn.addEventListener('click', async () => {
   const connectionId = acctEl.value;
   if (!connectionId) return;
   sendBtn.disabled = true; sendStatus.textContent = 'Sending…'; sendStatus.style.color = '';
-  const res = await authedFetch('/reports/send', { method: 'POST', body: JSON.stringify({ period, connectionId }) });
+  const res = await authedFetch('/api/reports/send', { method: 'POST', body: JSON.stringify({ period, connectionId }) });
   const d = await res.json().catch(() => ({}));
   sendBtn.disabled = false;
   if (res.ok) { sendStatus.textContent = `Sent to ${d.sentTo} ✓`; }
