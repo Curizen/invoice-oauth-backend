@@ -1,0 +1,83 @@
+{
+  "name": "Contract Extractor via Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "contract-extract",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "9f1d47a1-0b7e-4a52-8a10-c0ntractwbhk",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "contract-extract"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ (() => { const b = $json.body || {}; const prompt = 'Extract all employment contract fields from this contract document.\\n\\nFILENAME: ' + (b.filename || 'contract.pdf') + (b.pdf_base64 ? '\\n\\nThe contract is attached as a PDF. It may be a scanned document - read it visually, including handwriting and stamps.' : '\\n\\nCONTRACT TEXT:\\n' + String(b.pdf_text || '').slice(0, 15000)) + '\\n\\nINSTRUCTIONS:\\n- Dates must be in YYYY-MM-DD format\\n- salary_amount is a number only, no currency symbol\\n- salary_currency is a 3-letter code e.g. USD, EUR, SAR\\n- notice_period is a short text like \"30 days\" or \"2 months\"\\n- vacation_days and sick_days are numbers of days per year\\n- Use null for any field not found in the contract\\n- Return ONLY a raw JSON object, no markdown, no code blocks, no explanation\\n- Start with { and end with }\\n\\nReturn JSON with exactly these fields:\\n- employee_name\\n- role\\n- start_date\\n- end_date\\n- salary_amount\\n- salary_currency\\n- notice_period\\n- probation_end\\n- vacation_days\\n- sick_days'; const content = b.pdf_base64 ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b.pdf_base64 } }, { type: 'text', text: prompt }] : prompt; return JSON.stringify({ model: 'claude-opus-4-8', max_tokens: 2048, messages: [{ role: 'user', content }] }); })() }}",
+        "options": {}
+      },
+      "id": "b2c8e6d4-3f5a-4b1c-9d7e-claudecall01",
+      "name": "Claude — Extract Contract Fields",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0],
+      "credentials": {
+        "anthropicApi": {
+          "id": "LD3WFLr15kdiGPa7",
+          "name": "farah Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude's response defensively: strip fences, find {...}, null-fill.\nconst raw = ($json.content && $json.content[0] && $json.content[0].text) || '';\nconst cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\nconst start = cleaned.indexOf('{');\nconst end = cleaned.lastIndexOf('}');\n\nlet parsed = {};\nif (start !== -1 && end !== -1) {\n  try { parsed = JSON.parse(cleaned.substring(start, end + 1)); } catch (e) { parsed = {}; }\n}\n\nconst num = (v) => {\n  const n = Number(v);\n  return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : n;\n};\nconst str = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);\n\nreturn [{\n  json: {\n    employee_name: str(parsed.employee_name),\n    role: str(parsed.role),\n    start_date: str(parsed.start_date),\n    end_date: str(parsed.end_date),\n    salary_amount: num(parsed.salary_amount),\n    salary_currency: str(parsed.salary_currency) ? String(parsed.salary_currency).toUpperCase() : null,\n    notice_period: str(parsed.notice_period),\n    probation_end: str(parsed.probation_end),\n    vacation_days: num(parsed.vacation_days),\n    sick_days: num(parsed.sick_days),\n  },\n}];"
+      },
+      "id": "c3d9f7e5-4a6b-4c2d-8e9f-parsefields1",
+      "name": "Parse Extraction JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d4e0a8f6-5b7c-4d3e-9f0a-respondnode1",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [660, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Claude — Extract Contract Fields", "type": "main", "index": 0 }]]
+    },
+    "Claude — Extract Contract Fields": {
+      "main": [[{ "node": "Parse Extraction JSON", "type": "main", "index": 0 }]]
+    },
+    "Parse Extraction JSON": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

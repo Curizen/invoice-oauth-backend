@@ -3,217 +3,157 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard — Invoice OAuth starter</title>
+<title>Dashboard — Curizen Portal</title>
+<link rel="stylesheet" href="/portal.css" />
 <style>
-  * { box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #f5f5f7;
-    margin: 0;
-    color: #111;
+  /* Onboarding (zero connections) */
+  #onboarding { max-width: 480px; margin: 4rem auto; text-align: center; }
+  .ob-title { font-size: 22px; font-weight: 700; margin: 0 0 0.6rem; font-family: var(--font-heading); }
+  .ob-text { color: var(--subtitle); font-size: 0.95rem; line-height: 1.5; margin: 0 0 1.6rem; }
+  .ob-actions { display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap; }
+
+  .actions { display: flex; gap: 0.6rem; margin-bottom: 20px; flex-wrap: wrap; }
+
+  .storage select { min-width: 240px; }
+  .storage-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+
+  /* Anomaly panel */
+  .anomaly-row {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    padding: 9px 0; border-bottom: 1px solid var(--card-border); font-size: 13.5px;
   }
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.5rem;
-    background: #fff;
-    border-bottom: 1px solid #e2e2e5;
-  }
-  header h1 { font-size: 1.1rem; margin: 0; }
-  header button {
-    padding: 0.45rem 0.8rem;
-    border: 1px solid #d5d5da;
-    border-radius: 6px;
-    background: #fff;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-  header button:hover { background: #f0f0f2; }
-  main {
-    max-width: 720px;
-    margin: 2rem auto;
-    padding: 0 1.5rem;
-  }
-  .actions { display: flex; gap: 0.7rem; margin-bottom: 1.5rem; }
-  .actions button {
-    padding: 0.55rem 0.9rem;
-    border: none;
-    border-radius: 6px;
-    background: #111;
-    color: #fff;
-    font-size: 0.9rem;
-    cursor: pointer;
-  }
-  .actions button:hover { background: #333; }
-  .list { display: flex; flex-direction: column; gap: 0.7rem; }
+  .anomaly-row:last-child { border-bottom: none; }
+  .anomaly-row .when { color: var(--subtitle); font-size: 12px; margin-left: auto; }
+  .anomaly-row .insight { flex-basis: 100%; color: var(--subtitle); font-size: 12.5px; }
+  .sev { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .sev.high   { background: #fdecea; color: #98211f; }
+  .sev.medium { background: #fff4e5; color: #8a5300; }
+  .sev.low    { background: #fff9db; color: #7a6a00; }
+  .warn-text { color: #8a5300; font-size: 13px; }
   .conn {
     background: #fff;
     border-radius: 10px;
-    border: 1px solid #e2e2e5;
-    padding: 1rem;
+    border: 1px solid var(--card-border);
+    padding: 14px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
   }
-  .conn-info { display: flex; flex-direction: column; gap: 0.2rem; }
-  .conn-provider { font-weight: 600; text-transform: capitalize; }
-  .conn-email { font-size: 0.85rem; color: #666; }
-  .badge {
-    display: inline-block;
-    padding: 0.15rem 0.5rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    width: fit-content;
-  }
-  .badge.active { background: #e3f8e9; color: #1e7e34; }
-  .badge.reauth_required { background: #fdecea; color: #c0392b; }
-  .badge.other { background: #eee; color: #555; }
-  .conn-buttons { display: flex; gap: 0.5rem; }
-  .conn-buttons button {
-    padding: 0.4rem 0.7rem;
-    border: 1px solid #d5d5da;
-    border-radius: 6px;
-    background: #fff;
-    cursor: pointer;
-    font-size: 0.8rem;
-  }
-  .conn-buttons button:hover { background: #f0f0f2; }
-  .conn-buttons button.danger:hover { background: #fdecea; border-color: #c0392b; color: #c0392b; }
-  .empty { color: #888; font-size: 0.9rem; }
+  .conn-info { display: flex; flex-direction: column; gap: 4px; }
+  .conn-provider { font-weight: 600; text-transform: capitalize; font-size: 13.5px; }
+  .conn-email { font-size: 0.85rem; color: var(--subtitle); }
+  .conn-buttons { display: flex; gap: 8px; }
+  .conn-buttons .danger:hover { background: #fdecea; border-color: #c0392b; color: #c0392b; }
   pre {
-    background: #111;
+    background: #14161f;
     color: #d4d4d4;
     padding: 1rem;
     border-radius: 8px;
     overflow-x: auto;
     font-size: 0.8rem;
     max-height: 320px;
+    margin-top: 1.2rem;
   }
+
+  /* Camera capture modal */
+  #camera-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 16px;
+  }
+  #camera-modal video, #camera-modal canvas { max-width: 100%; max-height: 70vh; border-radius: 8px; background: #000; }
+  .camera-controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 </style>
 </head>
 <body>
-  <header>
-    <h1>Invoice OAuth starter</h1>
-    <button id="signout-btn">Sign out</button>
-  </header>
-  <main>
-    <div class="actions">
-      <button id="connect-google">Connect Gmail</button>
-      <button id="connect-microsoft">Connect Microsoft</button>
-    </div>
-    <div class="list" id="list"></div>
-    <pre id="output" style="display:none"></pre>
-  </main>
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <h1>Dashboard</h1>
+          <p class="subtitle">Connected mailboxes and invoice intake for your organization.</p>
+        </div>
+      </div>
 
-  <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+      <!-- Onboarding: shown when the user has no connections yet -->
+      <section id="onboarding" style="display:none">
+        <h2 class="ob-title">Connect your mailboxes</h2>
+        <p class="ob-text">Connect Gmail, Outlook, or both — we'll automatically find and file your invoices.</p>
+        <div class="ob-actions">
+          <button class="btn connect-btn" data-provider="google">Connect Gmail</button>
+          <button class="btn connect-btn" data-provider="microsoft">Connect Outlook</button>
+        </div>
+      </section>
 
-    const cfg = await fetch('/config').then((r) => r.json());
-    const supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+      <!-- Dashboard: shown once at least one mailbox is connected -->
+      <section id="dashboard" style="display:none">
+        <div class="actions">
+          <button class="btn connect-btn" data-provider="google">Add Gmail mailbox</button>
+          <button class="btn secondary connect-btn" data-provider="microsoft">Add Outlook mailbox</button>
+          <a class="btn secondary" href="/voice.html">Voice invoice</a>
+          <a class="btn secondary" href="/subscriptions.html">Subscriptions</a>
+          <a class="btn secondary" href="/reports.html">Reports</a>
+          <a class="btn secondary" href="/employees.html">Employees</a>
+        </div>
 
-    function setSbCookie(accessToken) {
-      document.cookie = `sb_token=${accessToken}; path=/; SameSite=Lax`;
-    }
-
-    function clearSbCookie() {
-      document.cookie = 'sb_token=; path=/; SameSite=Lax; Max-Age=0';
-    }
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.href = '/login.html';
-    }
-    setSbCookie(session.access_token);
-
-    supabase.auth.onAuthStateChange((_event, newSession) => {
-      if (newSession) {
-        setSbCookie(newSession.access_token);
-      } else {
-        clearSbCookie();
-        window.location.href = '/login.html';
-      }
-    });
-
-    const list = document.getElementById('list');
-    const output = document.getElementById('output');
-
-    function badgeClass(status) {
-      if (status === 'active') return 'active';
-      if (status === 'reauth_required') return 'reauth_required';
-      return 'other';
-    }
-
-    async function authedFetch(path, options = {}) {
-      const { data: { session } } = await supabase.auth.getSession();
-      return fetch(path, {
-        ...options,
-        headers: {
-          ...(options.headers ?? {}),
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-    }
-
-    async function loadConnections() {
-      const res = await authedFetch('/connections');
-      const conns = await res.json();
-
-      if (conns.length === 0) {
-        list.innerHTML = '<p class="empty">No connections yet. Connect Gmail or Microsoft above.</p>';
-        return;
-      }
-
-      list.innerHTML = '';
-      for (const c of conns) {
-        const row = document.createElement('div');
-        row.className = 'conn';
-        row.innerHTML = `
-          <div class="conn-info">
-            <span class="conn-provider">${c.provider}</span>
-            <span class="conn-email">${c.email ?? ''}</span>
-            <span class="badge ${badgeClass(c.status)}">${c.status}</span>
+        <!-- Where every invoice (Gmail or Outlook) is filed. OneDrive-only. -->
+        <div class="card storage" id="storage" style="display:none">
+          <h2>Invoice storage (OneDrive)</h2>
+          <div class="storage-row">
+            <select id="storage-select"></select>
+            <button id="storage-save" class="btn" type="button">Save</button>
+            <span class="ok-text" id="storage-status"></span>
           </div>
-          <div class="conn-buttons">
-            <button class="test-btn">Test</button>
-            <button class="danger disconnect-btn">Disconnect</button>
+          <p class="muted-text" id="storage-hint" style="margin-top:10px"></p>
+        </div>
+
+        <!-- Manual invoice upload (PDF or image) -->
+        <div class="card" id="uploadBox" style="display:none">
+          <h2>Upload an invoice (PDF or image)</h2>
+          <div class="storage-row">
+            <input id="upload-input" type="file" accept="application/pdf,image/*" />
+            <button id="upload-btn" class="btn" type="button">Upload &amp; extract</button>
+            <button id="camera-btn" class="btn secondary" type="button">📷 Take photo</button>
+            <span class="ok-text" id="upload-status"></span>
           </div>
-        `;
-        row.querySelector('.test-btn').addEventListener('click', () => testConnection(c.id));
-        row.querySelector('.disconnect-btn').addEventListener('click', () => disconnectConnection(c.id));
-        list.appendChild(row);
-      }
-    }
+          <p class="muted-text" style="margin-top:10px">Files are filed into your chosen OneDrive and the invoice fields are extracted automatically.</p>
+          <p class="warn-text" id="upload-warning" style="display:none;margin-top:6px"></p>
+        </div>
 
-    async function testConnection(id) {
-      output.style.display = 'block';
-      output.textContent = 'Loading…';
-      const res = await authedFetch(`/test/${id}`);
-      const data = await res.json();
-      output.textContent = JSON.stringify(data, null, 2);
-    }
+        <!-- Recent spending anomalies (from anomaly_log via GET /anomalies) -->
+        <div class="card" id="anomalyBox" style="display:none">
+          <h2>⚠️ Spending anomalies</h2>
+          <div id="anomaly-list"></div>
+        </div>
 
-    async function disconnectConnection(id) {
-      await authedFetch(`/connections/${id}`, { method: 'DELETE' });
-      await loadConnections();
-    }
+        <!-- In-page camera capture: the photo goes through the same /upload-invoice flow -->
+        <div id="camera-modal" style="display:none">
+          <video id="camera-video" autoplay playsinline muted></video>
+          <canvas id="camera-canvas" style="display:none"></canvas>
+          <div class="camera-controls">
+            <button id="camera-capture" class="btn" type="button">📸 Capture</button>
+            <button id="camera-use" class="btn" type="button" style="display:none">Use photo</button>
+            <button id="camera-retake" class="btn secondary" type="button" style="display:none">Retake</button>
+            <button id="camera-cancel" class="btn secondary" type="button">Cancel</button>
+          </div>
+        </div>
 
-    document.getElementById('connect-google').addEventListener('click', () => {
-      window.location.href = '/connect/google';
-    });
-    document.getElementById('connect-microsoft').addEventListener('click', () => {
-      window.location.href = '/connect/microsoft';
-    });
+        <div class="list" id="list"></div>
+        <pre id="output" style="display:none"></pre>
+      </section>
+    </main>
+  </div>
 
-    document.getElementById('signout-btn').addEventListener('click', async () => {
-      await supabase.auth.signOut();
-      clearSbCookie();
-      window.location.href = '/login.html';
-    });
-
-    await loadConnections();
-  </script>
+  <script type="module" src="/js/app.js"></script>
 </body>
 </html>

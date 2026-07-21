@@ -2,7 +2,10 @@ import { Router, type Request, type Response } from 'express';
 import { providers, type Provider } from './providers.js';
 import { buildAuthorizeUrl, exchangeCode, revokeAtProvider } from './oauth.js';
 import { pkcePair, randomState, seal, unseal } from './crypto.js';
-import { upsertConnection, listConnections, getConnection, deleteConnection, audit } from './db.js';
+import {
+  upsertConnection, listConnections, getConnection, deleteConnection, audit,
+  getInvoiceStore, setInvoiceStore,
+} from './db.js';
 import { config } from './config.js';
 import { logger } from './logger.js';
 import { strictLimiter } from './middleware/rateLimit.js';
@@ -126,6 +129,35 @@ connections.get('/connections', async (req: Request, res: Response) => {
       status: r.status,
     })),
   );
+});
+
+// Which OneDrive (Microsoft connection) all invoices are filed into.
+connections.get('/settings/invoice-store', async (req: Request, res: Response) => {
+  try {
+    const connectionId = await getInvoiceStore(req.userId!);
+    res.json({ connectionId });
+  } catch (err) {
+    logger.error({ err }, 'get invoice-store failed');
+    res.status(500).json({ error: 'Failed to read invoice storage setting' });
+  }
+});
+
+// Choose the storage OneDrive. Must be one of the user's Microsoft connections.
+connections.put('/settings/invoice-store', async (req: Request, res: Response) => {
+  try {
+    const connectionId = (req.body as { connectionId?: string })?.connectionId;
+    if (!connectionId) return res.status(400).json({ error: 'connectionId is required' });
+    const ok = await setInvoiceStore(req.userId!, connectionId);
+    if (!ok) {
+      return res
+        .status(400)
+        .json({ error: 'Must be one of your connected Microsoft accounts' });
+    }
+    res.json({ connectionId });
+  } catch (err) {
+    logger.error({ err }, 'set invoice-store failed');
+    res.status(500).json({ error: 'Failed to save invoice storage setting' });
+  }
 });
 
 // Disconnect: revoke at the provider, then delete our ciphertext

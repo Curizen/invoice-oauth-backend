@@ -1,0 +1,47 @@
+{
+  "ServiceName": "invoice-oauth-starter",
+  "SourceConfiguration": {
+    "AutoDeploymentsEnabled": true,
+    "AuthenticationConfiguration": {
+      "AccessRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/AppRunnerECRAccessRole"
+    },
+    "ImageRepository": {
+      "ImageIdentifier": "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/invoice-oauth-starter:latest",
+      "ImageRepositoryType": "ECR",
+      "ImageConfiguration": {
+        "Port": "3000",
+        "RuntimeEnvironmentVariables": {
+          "NODE_ENV": "production",
+          "APP_URL": "https://<your-apprunner-domain>",
+          "BASE_CURRENCY": "USD",
+          "ENABLE_SYNC": "false",
+          "SUPABASE_URL": "https://<your-project>.supabase.co",
+          "SUPABASE_ANON_KEY": "<supabase-anon-key>",
+          "SUPABASE_CA_CERT_FILE": "db/supabase-root-2021-ca.crt",
+          "GOOGLE_CLIENT_ID": "<google-oauth-client-id>",
+          "MS_CLIENT_ID": "<azure-app-client-id>"
+        },
+        "RuntimeEnvironmentSecrets": {
+          "DATABASE_URL": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:invoice-app/database-url",
+          "MASTER_KEY_HEX": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:invoice-app/master-key-hex",
+          "INTERNAL_API_KEY": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:invoice-app/internal-api-key",
+          "GOOGLE_CLIENT_SECRET": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:invoice-app/google-client-secret",
+          "MS_CLIENT_SECRET": "arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:invoice-app/ms-client-secret"
+        }
+      }
+    }
+  },
+  "InstanceConfiguration": {
+    "Cpu": "0.25 vCPU",
+    "Memory": "0.5 GB",
+    "InstanceRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/AppRunnerInstanceRole"
+  },
+  "HealthCheckConfiguration": {
+    "Protocol": "HTTP",
+    "Path": "/healthz",
+    "Interval": 10,
+    "Timeout": 5,
+    "HealthyThreshold": 1,
+    "UnhealthyThreshold": 5
+  }
+}

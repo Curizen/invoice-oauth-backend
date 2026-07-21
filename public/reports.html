@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reports — Curizen Portal</title>
+<link rel="stylesheet" href="/portal.css" />
+<style>
+  .send { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+  .send select { padding: 9px 10px; border: 1px solid #d7dae2; border-radius: 8px; font-size: 13.5px; }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <h1>Financial Reports</h1>
+          <p class="subtitle" id="period-label">Spend summary across every connected mailbox.</p>
+        </div>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-period="monthly">Monthly</button>
+        <button class="tab" data-period="quarterly">Quarterly</button>
+        <button class="tab" data-period="yearly">Yearly</button>
+      </div>
+
+      <div class="stat-row" id="cards"></div>
+
+      <div class="card"><h2>Top vendors</h2><div id="vendors"></div></div>
+      <div class="card"><h2>By category</h2><div id="categories"></div></div>
+
+      <div class="card send">
+        <span class="muted-text">Email this report from:</span>
+        <select id="acct"></select>
+        <button id="send-btn" class="btn" type="button">Send</button>
+        <span class="ok-text" id="send-status"></span>
+      </div>
+    </main>
+  </div>
+
+<script type="module" src="/js/reports.js"></script>
+</body>
+</html>

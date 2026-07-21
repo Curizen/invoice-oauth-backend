@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Employee — Curizen Portal</title>
+<link rel="stylesheet" href="/portal.css" />
+<style>
+  .field input[type="number"] { width: 110px; }
+  .field input.cur { width: 80px; text-transform: uppercase; }
+  .stats { display: flex; gap: 1.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+  .stat .v { font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; }
+  .stat .l { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--subtitle); }
+  .row-actions button { border: none; background: none; cursor: pointer; font-size: 0.8rem; color: #b3261e; padding: 0.2rem 0.4rem; }
+  #review { border: 1px dashed #c8d8f0; background: #f6f9ff; border-radius: 10px; padding: 0.9rem; margin-top: 1rem; }
+  #review h3 { margin: 0 0 0.8rem; font-size: 0.92rem; font-family: var(--font-heading); }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <h1 id="title">Employee</h1>
+          <p class="subtitle"><a href="/employees.html">← All employees</a></p>
+        </div>
+      </div>
+
+      <!-- Contract -->
+      <div class="card">
+        <h2>Contract</h2>
+        <div class="stats">
+          <div class="stat"><div class="v" id="c-start">—</div><div class="l">Start</div></div>
+          <div class="stat"><div class="v" id="c-end">—</div><div class="l">End</div></div>
+          <div class="stat"><div class="v" id="c-badge"></div><div class="l">Expiry</div></div>
+          <div class="stat"><div class="v" id="c-probation">—</div><div class="l">Probation ends</div></div>
+          <div class="stat"><div class="v" id="c-notice">—</div><div class="l">Notice period</div></div>
+        </div>
+        <p class="muted-text" id="c-file">No contract uploaded yet.</p>
+        <div class="form-row">
+          <input type="file" id="c-input" accept="application/pdf" />
+          <button id="c-upload" class="btn" type="button">Upload contract (PDF)</button>
+          <a id="c-download" class="btn secondary" style="display:none">Download PDF</a>
+        </div>
+        <p class="err-text" id="c-err" style="display:none"></p>
+        <p class="ok-text" id="c-ok" style="display:none"></p>
+
+        <!-- AI extraction review: prefilled from Claude, editable, saved on Confirm only. -->
+        <div id="review" style="display:none">
+          <h3>Review extracted contract details — nothing is saved until you confirm</h3>
+          <div class="form-row" style="margin-bottom:0.6rem">
+            <div class="field"><label>Employee name</label><input id="r-name" type="text" /></div>
+            <div class="field"><label>Role</label><input id="r-role" type="text" /></div>
+            <div class="field"><label>Salary</label><input id="r-salary" type="number" min="0" step="0.01" /></div>
+            <div class="field"><label>Currency</label><input id="r-currency" class="cur" type="text" maxlength="3" /></div>
+            <div class="field"><label>Notice period</label><input id="r-notice" type="text" /></div>
+          </div>
+          <div class="form-row" style="margin-bottom:0.8rem">
+            <div class="field"><label>Start date</label><input id="r-start" type="date" /></div>
+            <div class="field">
+              <label>End date</label><input id="r-end" type="date" />
+              <label class="chk"><input id="r-indef" type="checkbox" /> Indefinite-term</label>
+            </div>
+            <div class="field"><label>Probation end</label><input id="r-probation" type="date" /></div>
+            <div class="field"><label>Vacation days / yr</label><input id="r-vacation" type="number" min="0" /></div>
+            <div class="field"><label>Sick days / yr</label><input id="r-sick" type="number" min="0" /></div>
+          </div>
+          <div class="form-row">
+            <button id="r-confirm" class="btn" type="button">Confirm &amp; save</button>
+            <button id="r-cancel" class="btn secondary" type="button">Discard</button>
+          </div>
+          <p class="err-text" id="r-err" style="display:none"></p>
+        </div>
+      </div>
+
+      <!-- Vacation -->
+      <div class="card">
+        <h2>Vacation days</h2>
+        <div class="stats">
+          <div class="stat"><div class="v" id="v-allowed">0</div><div class="l">Allowed</div></div>
+          <div class="stat"><div class="v" id="v-taken">0</div><div class="l">Taken</div></div>
+          <div class="stat"><div class="v" id="v-remaining">0</div><div class="l">Remaining</div></div>
+        </div>
+        <div class="form-row" style="margin-bottom:0.6rem">
+          <div class="field"><label>Date</label><input id="v-date" type="date" /></div>
+          <div class="field"><label>Days</label><input id="v-days" type="number" min="0.5" step="0.5" placeholder="1" /></div>
+          <button id="v-add" class="btn" type="button">+ Add vacation</button>
+        </div>
+        <p class="err-text" id="v-err" style="display:none"></p>
+        <div id="v-list"></div>
+      </div>
+
+      <!-- Sick leave -->
+      <div class="card">
+        <h2>Sick leaves</h2>
+        <div class="stats">
+          <div class="stat"><div class="v" id="s-allowed">0</div><div class="l">Allowed</div></div>
+          <div class="stat"><div class="v" id="s-taken">0</div><div class="l">Taken</div></div>
+          <div class="stat"><div class="v" id="s-remaining">0</div><div class="l">Remaining</div></div>
+        </div>
+        <div class="form-row" style="margin-bottom:0.6rem">
+          <div class="field"><label>Date</label><input id="s-date" type="date" /></div>
+          <div class="field"><label>Days</label><input id="s-days" type="number" min="0.5" step="0.5" placeholder="1" /></div>
+          <button id="s-add" class="btn" type="button">+ Add sick leave</button>
+        </div>
+        <p class="err-text" id="s-err" style="display:none"></p>
+        <div id="s-list"></div>
+      </div>
+
+      <!-- Bonuses -->
+      <div class="card">
+        <h2>Bonuses</h2>
+        <p class="muted-text" id="b-total"></p>
+        <div class="form-row" style="margin-bottom:0.6rem">
+          <div class="field"><label>Date</label><input id="b-date" type="date" /></div>
+          <div class="field"><label>Amount</label><input id="b-amount" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          <div class="field"><label>Note</label><input id="b-note" type="text" placeholder="e.g. Q2 performance" /></div>
+          <button id="b-add" class="btn" type="button">+ Add bonus</button>
+        </div>
+        <p class="err-text" id="b-err" style="display:none"></p>
+        <div id="b-list"></div>
+      </div>
+
+      <!-- Salary -->
+      <div class="card">
+        <h2>Salary</h2>
+        <div class="stats">
+          <div class="stat"><div class="v" id="p-current">—</div><div class="l">Current salary</div></div>
+        </div>
+        <div class="form-row" style="margin-bottom:0.6rem">
+          <div class="field"><label>New salary</label><input id="p-new" type="number" min="0" step="0.01" /></div>
+          <button id="p-save" class="btn" type="button">Update salary</button>
+        </div>
+        <p class="err-text" id="p-err" style="display:none"></p>
+        <h2 style="margin-top:1rem">History</h2>
+        <div id="p-list"></div>
+      </div>
+    </main>
+  </div>
+
+<script type="module" src="/js/employee.js"></script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Subscriptions — Curizen Portal</title>
+<link rel="stylesheet" href="/portal.css" />
+<style>
+  .field input[type="text"] { min-width: 180px; }
+  .field input.cur { width: 80px; text-transform: uppercase; }
+  .row-actions button { border: none; background: none; cursor: pointer; font-size: 0.8rem; color: var(--subtitle); padding: 0.2rem 0.4rem; }
+  .row-actions button.del { color: #b3261e; }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <h1>Subscriptions</h1>
+          <p class="subtitle">Track recurring spend across every subscription.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Add a subscription</h2>
+        <div class="form-row">
+          <div class="field"><label for="s-name">Name</label><input id="s-name" type="text" placeholder="e.g. Notion" /></div>
+          <div class="field"><label for="s-amount">Value</label><input id="s-amount" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          <div class="field"><label for="s-currency">Currency</label><input id="s-currency" class="cur" type="text" value="USD" maxlength="3" /></div>
+          <div class="field"><label for="s-date">Start date</label><input id="s-date" type="date" /></div>
+          <button id="s-add" class="btn" type="button">Add</button>
+        </div>
+        <p class="err-text" id="s-err" style="display:none"></p>
+      </div>
+
+      <div class="card">
+        <h2>Running subscriptions</h2>
+        <p class="muted-text" id="s-summary" style="margin-bottom:14px"></p>
+        <div id="s-list"></div>
+      </div>
+    </main>
+  </div>
+
+<script type="module" src="/js/subscriptions.js"></script>
+</body>
+</html>

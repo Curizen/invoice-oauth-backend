@@ -39,6 +39,25 @@ export function decrypt(ct: Ciphertext, aad: string): string {
   return Buffer.concat([decipher.update(ct.data), decipher.final()]).toString('utf8');
 }
 
+// Binary twins of encrypt/decrypt for at-rest field encryption (contract PDFs
+// and friends — see fieldCrypto.ts). Kept here so this module stays the only
+// place in the codebase that touches key material.
+
+export function encryptBytes(plaintext: Buffer, aad: string): Ciphertext {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', masterKey, iv);
+  cipher.setAAD(Buffer.from(aad, 'utf8'));
+  const data = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  return { iv, tag: cipher.getAuthTag(), data };
+}
+
+export function decryptBytes(ct: Ciphertext, aad: string): Buffer {
+  const decipher = createDecipheriv('aes-256-gcm', masterKey, ct.iv);
+  decipher.setAAD(Buffer.from(aad, 'utf8'));
+  decipher.setAuthTag(ct.tag);
+  return Buffer.concat([decipher.update(ct.data), decipher.final()]);
+}
+
 // --- Sealed cookies (for the short-lived OAuth state between redirect and callback) ---
 
 export function seal(payload: object): string {

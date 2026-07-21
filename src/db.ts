@@ -1,16 +1,38 @@
+import fs from 'node:fs';
 import pg from 'pg';
 import { config } from './config.js';
 import { encrypt, decrypt, KEY_VERSION } from './crypto.js';
 import { logger } from './logger.js';
 import type { Provider } from './providers.js';
 
+/**
+ * Production TLS: verify the server certificate against Supabase's CA
+ * (Dashboard → Settings → Database → SSL certificate), supplied as either
+ * SUPABASE_CA_CERT (PEM, or base64 of the PEM — multiline env values are
+ * fiddly in some deploy UIs) or SUPABASE_CA_CERT_FILE (path). If neither is
+ * set, warn loudly and fall back to an unverified connection rather than
+ * refusing to boot — but that fallback leaves queries (which carry decrypted
+ * refresh tokens) open to a man-in-the-middle, so set the cert.
+ */
+function dbSsl(): { ca: string; rejectUnauthorized: true } | { rejectUnauthorized: false } | undefined {
+  if (config.nodeEnv !== 'production') return undefined;
+  let ca = process.env.SUPABASE_CA_CERT?.trim();
+  if (ca && !ca.startsWith('-----BEGIN')) {
+    ca = Buffer.from(ca, 'base64').toString('utf8');
+  }
+  if (!ca && process.env.SUPABASE_CA_CERT_FILE) {
+    ca = fs.readFileSync(process.env.SUPABASE_CA_CERT_FILE, 'utf8');
+  }
+  if (ca) return { ca, rejectUnauthorized: true };
+  logger.warn(
+    'SUPABASE_CA_CERT / SUPABASE_CA_CERT_FILE not set — DB TLS certificate verification is DISABLED',
+  );
+  return { rejectUnauthorized: false };
+}
+
 export const pool = new pg.Pool({
   connectionString: config.databaseUrl,
-  // rejectUnauthorized: false skips certificate verification — acceptable
-  // for Supabase's pooler today (it doesn't publish a cert Node trusts by
-  // default), but this is a tradeoff, not the ideal setting. Should move to
-  // sslmode=verify-full with Supabase's CA cert when that becomes practical.
-  ssl: config.nodeEnv === 'production' ? { rejectUnauthorized: false } : undefined,
+  ssl: dbSsl(),
 });
 
 pool.on('error', (err) => {
@@ -115,6 +137,34 @@ export async function listConnections(userId: string): Promise<ConnectionRow[]> 
 
 export async function deleteConnection(id: string, userId: string): Promise<void> {
   await pool.query(`DELETE FROM connected_accounts WHERE id=$1 AND user_id=$2`, [id, userId]);
+}
+
+/** The connection whose OneDrive receives ALL of this user's invoices. */
+export async function getInvoiceStore(userId: string): Promise<string | null> {
+  const { rows } = await pool.query<{ invoice_store_connection_id: string | null }>(
+    `SELECT invoice_store_connection_id FROM app_users WHERE id = $1`,
+    [userId],
+  );
+  return rows[0]?.invoice_store_connection_id ?? null;
+}
+
+/**
+ * Point this user's invoice storage at one of their connections. Enforces, in
+ * a single statement, that the connection exists, belongs to the user, and is
+ * a Microsoft account (only Microsoft accounts have a OneDrive we can write to).
+ * Returns false if that check fails so the caller can 400.
+ */
+export async function setInvoiceStore(userId: string, connectionId: string): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `UPDATE app_users SET invoice_store_connection_id = $2
+     WHERE id = $1
+       AND EXISTS (
+         SELECT 1 FROM connected_accounts
+         WHERE id = $2 AND user_id = $1 AND provider = 'microsoft'
+       )`,
+    [userId, connectionId],
+  );
+  return (rowCount ?? 0) > 0;
 }
 
 export async function audit(connectionId: string | null, event: string, detail?: object): Promise<void> {

@@ -8,8 +8,10 @@ const dbDir = path.join(__dirname, '..', '..', 'db');
 
 // Postgres error codes safe to skip on rerun: duplicate_object,
 // duplicate_table, duplicate_column, undefined_object (e.g. REVOKE ...
-// FROM anon, authenticated failing on a local DB that has no such roles).
-const BENIGN_CODES = new Set(['42710', '42P07', '42701', '42704']);
+// FROM anon, authenticated failing on a local DB that has no such roles),
+// undefined_column (migration_008 relaxes plaintext columns that
+// encryptSensitive.ts later drops — reruns after the drop are fine).
+const BENIGN_CODES = new Set(['42710', '42P07', '42701', '42704', '42703']);
 
 function splitStatements(sql: string): string[] {
   return sql
@@ -39,6 +41,12 @@ async function applyFile(filename: string): Promise<void> {
 async function main() {
   await applyFile('schema.sql');
   await applyFile('migration_002_invoices.sql');
+  await applyFile('migration_003_fk_ondelete.sql');
+  await applyFile('migration_004_invoice_store.sql');
+  await applyFile('migration_005_subscriptions.sql');
+  await applyFile('migration_006_employees.sql');
+  await applyFile('migration_007_contract_type.sql');
+  await applyFile('migration_008_encrypt_sensitive.sql');
   await pool.end();
 }
 

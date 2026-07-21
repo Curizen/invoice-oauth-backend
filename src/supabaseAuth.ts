@@ -1,6 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { config } from './config.js';
 import { pool } from './db.js';
+import { logger } from './logger.js';
 
 /**
  * Supabase Auth middleware.
@@ -18,35 +20,74 @@ import { pool } from './db.js';
  *
  *   document.cookie = `sb_token=${session.access_token}; path=/; SameSite=Lax`;
  *
- * This middleware verifies the token with Supabase, then maps the Supabase
- * user to a row in OUR users table (creating it on first sight) so the rest
- * of the codebase keeps working with internal user ids.
+ * This middleware verifies the token with Supabase, then looks up the
+ * matching row in OUR app_users table so the rest of the codebase keeps
+ * working with internal user ids.
+ *
+ * This app is single-user: app_users is seeded exactly once by
+ * `npm run db:seed-user` (src/scripts/seedSingleUser.ts). This middleware
+ * only ever looks up that one row by auth_subject — it does NOT provision new
+ * app_users rows, so any other Supabase-authenticated identity (e.g. someone
+ * who signed up directly against Supabase, bypassing this app) is rejected.
  *
  * Production note: supabase.auth.getUser() makes a network call per request.
  * Fine to start; later, verify the JWT locally (project JWT keys) and cache.
  */
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!,
-  { auth: { persistSession: false } },
-);
+// Created lazily: this module is imported unconditionally by index.ts, but the
+// middleware only runs when SUPABASE_URL is configured (index.ts refuses to
+// start otherwise, or explicitly uses demoAuth in dev). Constructing the
+// client at import time with an empty URL would crash before that guard can
+// give its clear error.
+let supabaseClient: ReturnType<typeof createClient> | null = null;
+function supabase() {
+  supabaseClient ??= createClient(
+    config.supabase.url,
+    config.supabase.anonKey,
+    { auth: { persistSession: false } },
+  );
+  return supabaseClient;
+}
+
+const SAFE_METHODS = new Set(['GET', 'HEAD']);
 
 export async function supabaseAuth(req: Request, res: Response, next: NextFunction) {
   const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, '');
-  const token = bearer ?? (req.cookies?.sb_token as string | undefined);
+  // CSRF defense: the sb_token cookie exists only for the browser-redirect
+  // OAuth GETs (/connect, /callback), where a header is impossible. Cookies
+  // are sent automatically cross-site, so accepting one on a mutating method
+  // would let any page forge state-changing requests. Mutations must carry
+  // the explicit Authorization: Bearer header (the frontend already does).
+  // Note: SameSite=Strict is NOT an option here — the OAuth callback arrives
+  // as a cross-site top-level redirect and would lose the cookie.
+  const cookieToken = SAFE_METHODS.has(req.method)
+    ? (req.cookies?.sb_token as string | undefined)
+    : undefined;
+  const token = bearer ?? cookieToken;
   if (!token) return res.status(401).json({ error: 'Not signed in' });
 
-  const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data.user) return res.status(401).json({ error: 'Invalid or expired session' });
+  try {
+    const { data, error } = await supabase().auth.getUser(token);
+    if (error || !data.user) return res.status(401).json({ error: 'Invalid or expired session' });
 
-  const su = data.user;
-  const { rows } = await pool.query<{ id: string }>(
-    `INSERT INTO app_users (email, auth_provider, auth_subject)
-     VALUES ($1, 'supabase', $2)
-     ON CONFLICT (auth_provider, auth_subject) DO UPDATE SET email = EXCLUDED.email
-     RETURNING id`,
-    [su.email ?? `${su.id}@no-email.local`, su.id],
-  );
-  req.userId = rows[0].id;
-  next();
+    const su = data.user;
+
+    // Single-user lockdown: look up the one seeded app_users row by the
+    // Supabase-vouched stable identity (auth_subject). No upsert — anyone
+    // else who authenticates against Supabase (a second account created
+    // directly there, bypassing this app) simply has no matching row here
+    // and is rejected below.
+    const result = await pool.query<{ id: string }>(
+      `SELECT id FROM app_users WHERE auth_provider = 'supabase' AND auth_subject = $1`,
+      [su.id],
+    );
+    if (!result.rows[0]) return res.status(401).json({ error: 'Not authorized' });
+
+    req.userId = result.rows[0].id;
+    next();
+  } catch (err) {
+    // Never let an auth-path failure become an unhandled rejection that takes
+    // down the whole server.
+    logger.error({ err }, 'supabaseAuth failed');
+    return res.status(500).json({ error: 'Auth check failed' });
+  }
 }

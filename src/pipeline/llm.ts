@@ -74,12 +74,7 @@ async function callOpenAI(prompt: string): Promise<string> {
 }
 
 /** Port of the "Code in JavaScript" node: strip fences, find {...}, fallbacks. */
-export async function extractInvoiceFields(
-  email: EmailMeta,
-  attachmentName: string,
-  pdfText: string,
-): Promise<ExtractedInvoice> {
-  const raw = await callOpenAI(PROMPT(email, attachmentName, pdfText));
+function parseInvoiceJson(raw: string, fallbackVendor: string): ExtractedInvoice {
   const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
@@ -94,7 +89,7 @@ export async function extractInvoiceFields(
   }
 
   return {
-    vendor: parsed.vendor ?? email.fromName ?? 'Unknown Vendor',
+    vendor: parsed.vendor ?? fallbackVendor ?? 'Unknown Vendor',
     invoice_number: parsed.invoice_number ?? null,
     amount: Number(parsed.amount ?? 0) || 0,
     currency: parsed.currency ?? 'USD',
@@ -104,4 +99,60 @@ export async function extractInvoiceFields(
     description: parsed.description ?? '',
     tax_amount: Number(parsed.tax_amount ?? 0) || 0,
   };
+}
+
+export async function extractInvoiceFields(
+  email: EmailMeta,
+  attachmentName: string,
+  pdfText: string,
+): Promise<ExtractedInvoice> {
+  const raw = await callOpenAI(PROMPT(email, attachmentName, pdfText));
+  return parseInvoiceJson(raw, email.fromName);
+}
+
+const IMAGE_PROMPT = (filename: string) => `You are given an image of an invoice or receipt (filename: ${filename}). Read the image and extract all invoice fields.
+
+- Return ONLY a raw JSON object, no markdown, no code blocks, no explanation
+- Start with { and end with }
+
+Return JSON with exactly these fields:
+- vendor (company name issuing the invoice)
+- invoice_number (the invoice ID or reference number, or null)
+- amount (total amount as a number only, no currency symbol)
+- currency (3-letter code e.g. USD, EUR, GBP, SAR)
+- invoice_date (YYYY-MM-DD format or null)
+- due_date (YYYY-MM-DD format or null)
+- category (one of: software/office_supplies/travel/equipment/utilities/services/other)
+- description (short description of what the invoice is for)
+- tax_amount (tax amount as a number, 0 if not found)`;
+
+/** Vision extraction for image invoices (JPEG/PNG/etc.) using GPT-4o. */
+export async function extractInvoiceFromImage(
+  imageBase64: string,
+  contentType: string,
+  filename: string,
+): Promise<ExtractedInvoice> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL ?? 'gpt-4o',
+      temperature: 0,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: IMAGE_PROMPT(filename) },
+            { type: 'image_url', image_url: { url: `data:${contentType};base64,${imageBase64}` } },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`OpenAI vision ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { choices: { message: { content: string } }[] };
+  return parseInvoiceJson(data.choices[0]?.message?.content ?? '', 'Unknown Vendor');
 }

@@ -22,11 +22,17 @@ export const providers: Record<Provider, ProviderConfig> = {
     authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
     tokenUrl: 'https://oauth2.googleapis.com/token',
     revokeUrl: 'https://oauth2.googleapis.com/revoke',
-    // Least privilege: read-only Gmail. NOTE: gmail.readonly is a Google
-    // "restricted" scope — production requires OAuth verification + a CASA
-    // security assessment. While your app is in "Testing" mode, refresh
-    // tokens expire after 7 days.
-    scopes: ['openid', 'email', 'https://www.googleapis.com/auth/gmail.readonly'],
+    // Least privilege: read-only Gmail + send (for emailing reports from the
+    // user's own mailbox). NOTE: both gmail.readonly and gmail.send are Google
+    // "restricted" scopes — production requires OAuth verification + a CASA
+    // security assessment. While your app is in "Testing" mode, refresh tokens
+    // expire after 7 days. Adding a scope requires users to reconnect to consent.
+    scopes: [
+      'openid',
+      'email',
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.send',
+    ],
     extraAuthParams: {
       access_type: 'offline',        // required to receive a refresh token
       prompt: 'consent',             // re-issue refresh token on reconnect
@@ -56,6 +62,7 @@ export const providers: Record<Provider, ProviderConfig> = {
       'offline_access',
       'https://graph.microsoft.com/User.Read',
       'https://graph.microsoft.com/Mail.Read',
+      'https://graph.microsoft.com/Mail.Send',
       'https://graph.microsoft.com/Files.ReadWrite.AppFolder',
     ],
     extraAuthParams: {},

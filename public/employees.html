@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Employees — Curizen Portal</title>
+<link rel="stylesheet" href="/portal.css" />
+<style>
+  .field input[type="text"] { min-width: 160px; }
+  .field input.cur { width: 80px; text-transform: uppercase; }
+  .upload-row { display: flex; align-items: center; gap: 0.7rem; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--row-divider); flex-wrap: wrap; }
+  tbody tr { cursor: pointer; }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <h1>Employees</h1>
+          <p class="subtitle">Contracts, leave, bonuses, and salary history for your team.</p>
+        </div>
+      </div>
+
+      <div class="alert-list" id="alerts"></div>
+
+      <div class="card">
+        <h2>Add an employee</h2>
+        <div class="form-row">
+          <div class="field"><label for="e-name">Name</label><input id="e-name" type="text" placeholder="e.g. Sara Ahmad" /></div>
+          <div class="field"><label for="e-role">Role</label><input id="e-role" type="text" placeholder="e.g. Accountant" /></div>
+          <div class="field"><label for="e-salary">Salary</label><input id="e-salary" type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          <div class="field"><label for="e-currency">Currency</label><input id="e-currency" class="cur" type="text" value="USD" maxlength="3" /></div>
+          <div class="field"><label for="e-start">Contract start</label><input id="e-start" type="date" /></div>
+          <div class="field">
+            <label for="e-end">Contract end</label><input id="e-end" type="date" />
+            <label class="chk"><input id="e-indef" type="checkbox" /> Indefinite-term</label>
+          </div>
+          <button id="e-add" class="btn" type="button">Add employee</button>
+        </div>
+        <p class="err-text" id="e-err" style="display:none"></p>
+        <div class="upload-row">
+          <span class="muted-text">or let AI do it:</span>
+          <input id="c-file" type="file" accept="application/pdf,.pdf" style="display:none" />
+          <button id="c-upload" class="btn secondary" type="button">Upload contract → auto-create</button>
+          <span class="ok-text" id="c-status"></span>
+        </div>
+        <p class="err-text" id="c-err" style="display:none"></p>
+      </div>
+
+      <div class="card">
+        <h2>Employees</h2>
+        <div id="e-list"></div>
+      </div>
+    </main>
+  </div>
+
+<script type="module" src="/js/employees.js"></script>
+</body>
+</html>

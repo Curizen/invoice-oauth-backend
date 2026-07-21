@@ -1,9 +1,22 @@
 import { pool, audit } from '../db.js';
+import { logger } from '../logger.js';
+import type { Provider } from '../providers.js';
 import { extractInvoiceFields, type ExtractedInvoice } from './llm.js';
-import {
-  listNewMessages, listAttachments, downloadAttachment, uploadToOneDrive,
-  type GraphMessage,
-} from './graphMail.js';
+import { normalizeForSave } from './currency.js';
+import * as graphMail from './graphMail.js';
+import * as gmailMail from './gmailMail.js';
+import { uploadToOneDrive, type GraphMessage } from './graphMail.js';
+import { checkDuplicateViaN8n } from './duplicateCheck.js';
+import { checkVendorIntel } from './vendorIntel.js';
+import { sendAnomalyAlertEmail } from '../anomalyAlert.js';
+
+// Mail access differs by provider (Microsoft Graph vs Gmail) but both modules
+// expose the same list/listAttachments/download shape, so the pipeline is
+// provider-agnostic. OneDrive upload is Microsoft-only and always goes through
+// the user's chosen storage connection (see syncConnection).
+function mailApi(provider: Provider) {
+  return provider === 'google' ? gmailMail : graphMail;
+}
 
 // pdf-parse is CJS; importing the lib file avoids its debug-mode side effect.
 // @ts-expect-error no types shipped
@@ -11,29 +24,16 @@ import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
 const BASE_CURRENCY = process.env.BASE_CURRENCY ?? 'USD';
 
-/** Port of "currency normalization" webhook: convert to base currency.
- *  Uses a free daily-rates API; falls back to 1:1 on any failure.
- *  Returns both the normalized amount and the rate actually used, so the
- *  caller can persist exchange_rate / exchange_date. rate === 1 means no
- *  conversion was applied (same currency, missing rate, or fetch failure). */
-let ratesCache: { at: number; rates: Record<string, number> } | null = null;
-async function normalizeAmount(
-  amount: number,
-  currency: string,
-): Promise<{ normalized: number; rate: number }> {
-  if (!amount || currency === BASE_CURRENCY) return { normalized: amount, rate: 1 };
-  try {
-    if (!ratesCache || Date.now() - ratesCache.at > 12 * 3600_000) {
-      const res = await fetch(`https://open.er-api.com/v6/latest/${BASE_CURRENCY}`);
-      const data = (await res.json()) as { rates: Record<string, number> };
-      ratesCache = { at: Date.now(), rates: data.rates };
-    }
-    const rate = ratesCache.rates[currency];
-    if (!rate) return { normalized: amount, rate: 1 }; // fail open
-    return { normalized: Math.round((amount / rate) * 100) / 100, rate };
-  } catch {
-    return { normalized: amount, rate: 1 }; // fail open: store original as normalized
-  }
+const log = logger.child({ component: 'pipeline' });
+
+/** Per-run tallies, bubbled up so the scheduler can log a tick summary. */
+export interface SyncCounts {
+  saved: number;
+  duplicates: number;
+  skipped: number;
+}
+function emptyCounts(): SyncCounts {
+  return { saved: 0, duplicates: 0, skipped: 0 };
 }
 
 /** Port of the "Build OneDrive Path" Set node. */
@@ -49,14 +49,28 @@ function buildPath(inv: ExtractedInvoice): { folder: string; filename: string } 
 async function processMessage(
   connectionId: string,
   userId: string,
+  provider: Provider,
+  storeConnectionId: string,
   msg: GraphMessage,
-): Promise<void> {
-  const attachments = await listAttachments(connectionId, msg.id);
+  parentLog: typeof log,
+): Promise<SyncCounts> {
+  const counts = emptyCounts();
+  const api = mailApi(provider);
+  const mlog = parentLog.child({ messageId: msg.id, subject: msg.subject ?? '' });
+
+  const attachments = await api.listAttachments(connectionId, msg.id);
+  mlog.info({ attachments: attachments.length }, 'message: listing attachments');
 
   for (const att of attachments) {
+    const alog = mlog.child({ attachment: att.name });
+
     // Port of "Is PDF or Image?" IF node.
     const ct = (att.contentType ?? '').toLowerCase();
-    if (!ct.includes('pdf') && !ct.includes('image')) continue;
+    if (!ct.includes('pdf') && !ct.includes('image')) {
+      alog.debug({ contentType: att.contentType }, 'skip: not a PDF or image');
+      counts.skipped += 1;
+      continue;
+    }
 
     // Dedupe on (connection, message, attachment) — replaces trigger state.
     const seen = await pool.query(
@@ -64,9 +78,14 @@ async function processMessage(
        WHERE connected_account_id = $1 AND email_message_id = $2 AND attachment_name = $3`,
       [connectionId, msg.id, att.name],
     );
-    if (seen.rowCount) continue;
+    if (seen.rowCount) {
+      alog.info('skip: attachment already processed');
+      counts.skipped += 1;
+      continue;
+    }
 
-    const fileBuf = await downloadAttachment(connectionId, msg.id, att.id);
+    alog.info('downloading attachment');
+    const fileBuf = await api.downloadAttachment(connectionId, msg.id, att.id);
 
     // Port of "Extract from File": PDFs get text; images pass empty text
     // (the LLM then works from email subject/body, matching old behavior
@@ -75,11 +94,14 @@ async function processMessage(
     if (ct.includes('pdf')) {
       try {
         pdfText = ((await pdfParse(fileBuf)) as { text: string }).text ?? '';
+        alog.debug({ pdfChars: pdfText.length }, 'parsed PDF text');
       } catch {
         pdfText = '';
+        alog.warn('PDF parse failed; falling back to email text');
       }
     }
 
+    alog.info('extracting invoice fields via LLM');
     const inv = await extractInvoiceFields(
       {
         subject: msg.subject ?? '',
@@ -92,13 +114,46 @@ async function processMessage(
       att.name,
       pdfText,
     );
+    alog.info(
+      {
+        vendor: inv.vendor,
+        invoiceNumber: inv.invoice_number,
+        amount: inv.amount,
+        currency: inv.currency,
+        category: inv.category,
+      },
+      'extracted invoice fields',
+    );
 
-    // Port of "smart duplicate detection": same user + vendor + invoice number.
-    // Runs BEFORE the vendor upsert so a skipped duplicate never pollutes
-    // vendor rolling stats. The per-attachment dedupe above already covers
-    // the same email being re-fetched; this covers the same invoice arriving
-    // as a different attachment/message.
-    if (inv.invoice_number) {
+    // Smart Duplicate Detection: n8n fuzzy match on vendor history when
+    // configured, else exact match on vendor + invoice number. Runs BEFORE
+    // the vendor upsert so a skipped duplicate never pollutes vendor rolling
+    // stats. The per-attachment dedupe above already covers the same email
+    // being re-fetched; this covers the same invoice arriving as a different
+    // attachment/message.
+    const invoiceDateForFx = inv.invoice_date ?? new Date().toISOString().slice(0, 10);
+    const n8nDup = await checkDuplicateViaN8n({
+      vendor: inv.vendor, amount: inv.amount, currency: inv.currency,
+      invoiceNumber: inv.invoice_number, date: invoiceDateForFx,
+    });
+    if (n8nDup) {
+      if (n8nDup.blocked) {
+        // n8n already wrote its own duplicate_log row; keep our audit trail.
+        await pool.query(
+          `INSERT INTO audit_log (user_id, action, actor_name, actor_role,
+             invoice_number, vendor, amount, currency, notes)
+           VALUES ($1,'DUPLICATE_BLOCKED','Email Bot','accountant',$2,$3,$4,$5,$6)`,
+          [userId, inv.invoice_number, inv.vendor, inv.amount, inv.currency,
+           `Duplicate detected by Smart Duplicate Detection (confidence ${n8nDup.confidence}): ${n8nDup.reason}`],
+        );
+        await audit(connectionId, 'invoice_duplicate_skipped', {
+          vendor: inv.vendor, invoice_number: inv.invoice_number,
+        });
+        alog.warn({ reason: n8nDup.reason, confidence: n8nDup.confidence }, 'duplicate blocked (n8n)');
+        counts.duplicates += 1;
+        continue;
+      }
+    } else if (inv.invoice_number) {
       const dup = await pool.query<{ id: string }>(
         `SELECT id FROM invoices
          WHERE user_id = $1 AND vendor = $2 AND invoice_number = $3
@@ -123,13 +178,27 @@ async function processMessage(
         await audit(connectionId, 'invoice_duplicate_skipped', {
           vendor: inv.vendor, invoice_number: inv.invoice_number,
         });
+        alog.warn({ matchedInvoiceId: dup.rows[0].id }, 'duplicate blocked');
+        counts.duplicates += 1;
         continue;
       }
     }
 
-    const { normalized, rate } = await normalizeAmount(inv.amount, inv.currency);
-    const rateApplied = rate !== 1;
-    const exchangeDate = rateApplied ? new Date().toISOString().slice(0, 10) : null;
+    // Convert via the shared helper (Multi-Currency Normalization workflow when
+    // configured, inline converter as fallback) — same logic as the voice path.
+    const { normalized, rate, exchangeDate } = await normalizeForSave(
+      inv.amount, inv.currency, invoiceDateForFx,
+    );
+    if (rate !== 1) {
+      alog.debug({ from: inv.currency, to: BASE_CURRENCY, rate, normalized }, 'normalized amount');
+    }
+
+    // Vendor Intelligence: fetch AI-driven anomaly assessment BEFORE the
+    // vendor upsert below, so the comparison baseline excludes this invoice.
+    const vendorIntel = await checkVendorIntel({
+      vendor: inv.vendor, amount: normalized, currency: BASE_CURRENCY,
+      invoiceNumber: inv.invoice_number, date: invoiceDateForFx,
+    });
 
     // VENDOR FIRST: upsert the vendor by name, then use its id on the invoice.
     // Numeric accumulators use COALESCE so pre-existing rows with NULLs (or
@@ -152,10 +221,14 @@ async function processMessage(
     const typicalAmount = vendorRes.rows[0].typical_amount != null
       ? Number(vendorRes.rows[0].typical_amount)
       : 0;
+    alog.debug({ vendorId, vendor: inv.vendor }, 'vendor upserted');
 
+    // Upload always targets the user's chosen Microsoft OneDrive (storeConnectionId),
+    // NOT the receiving connection — that's how a Gmail invoice lands in OneDrive.
     const { folder, filename } = buildPath(inv);
+    alog.info({ path: `${folder}/${filename}` }, 'uploading to OneDrive');
     const uploaded = await uploadToOneDrive(
-      connectionId, `${folder}/${filename}`, fileBuf, att.contentType || 'application/pdf',
+      storeConnectionId, `${folder}/${filename}`, fileBuf, att.contentType || 'application/pdf',
     );
 
     // Save invoice. No (user,vendor,invoice_number) unique constraint exists
@@ -186,12 +259,43 @@ async function processMessage(
       ],
     );
     // Lost the race with a concurrent run that already saved this attachment.
-    if (!inserted.rows[0]) continue;
+    if (!inserted.rows[0]) {
+      alog.info('skip: saved by a concurrent run');
+      counts.skipped += 1;
+      continue;
+    }
     const invoiceId = inserted.rows[0].id;
 
-    // Port of "vendor intelligence": flag amounts that deviate sharply from
-    // the vendor's typical amount. Only run when a baseline exists.
-    if (typicalAmount > 0) {
+    // Vendor Intelligence: use the n8n result when available, else fall back
+    // to flagging amounts that deviate sharply from the vendor's typical
+    // amount (only when a baseline exists).
+    if (vendorIntel) {
+      const deviationPct = typicalAmount > 0 ? ((normalized - typicalAmount) / typicalAmount) * 100 : 0;
+      await pool.query(
+        `INSERT INTO anomaly_log
+           (invoice_id, vendor, new_amount, typical_amount, deviation_pct, anomaly_level, insight)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [invoiceId, inv.vendor, normalized, typicalAmount, deviationPct, vendorIntel.anomalyLevel, vendorIntel.insight],
+      );
+      await pool.query(
+        `UPDATE invoices SET anomaly_level = $2, anomaly_insight = $3 WHERE id = $1`,
+        [invoiceId, vendorIntel.anomalyLevel, vendorIntel.insight],
+      );
+      await pool.query(
+        `INSERT INTO audit_log (user_id, action, actor_name, actor_role, invoice_id,
+           invoice_number, vendor, amount, currency, notes)
+         VALUES ($1,'ANOMALY_FLAGGED','Email Bot','accountant',$2,$3,$4,$5,$6,$7)`,
+        [userId, invoiceId, inv.invoice_number, inv.vendor, inv.amount, inv.currency, vendorIntel.insight],
+      );
+      alog.warn({ invoiceId, anomalyLevel: vendorIntel.anomalyLevel, via: 'n8n' }, 'anomaly flagged');
+      // Fire-and-forget: a failed alert email must not fail the save.
+      void sendAnomalyAlertEmail(userId, {
+        vendor: inv.vendor, amount: normalized, currency: BASE_CURRENCY, typicalAmount,
+        level: vendorIntel.anomalyLevel, insight: vendorIntel.insight,
+        invoiceNumber: inv.invoice_number, invoiceDate: invoiceDateForFx,
+        onedriveUrl: uploaded.webUrl ?? null, source: 'email',
+      });
+    } else if (typicalAmount > 0) {
       const deviationPct = ((normalized - typicalAmount) / typicalAmount) * 100;
       if (Math.abs(deviationPct) >= 50) {
         // anomaly_log.anomaly_level is NOT NULL: abs 50–100% -> 'medium',
@@ -217,6 +321,13 @@ async function processMessage(
            VALUES ($1,'ANOMALY_FLAGGED','Email Bot','accountant',$2,$3,$4,$5,$6,$7)`,
           [userId, invoiceId, inv.invoice_number, inv.vendor, inv.amount, inv.currency, insight],
         );
+        alog.warn({ invoiceId, deviationPct: Math.round(deviationPct), anomalyLevel }, 'anomaly flagged');
+        void sendAnomalyAlertEmail(userId, {
+          vendor: inv.vendor, amount: normalized, currency: BASE_CURRENCY, typicalAmount,
+          level: anomalyLevel, insight,
+          invoiceNumber: inv.invoice_number, invoiceDate: invoiceDateForFx,
+          onedriveUrl: uploaded.webUrl ?? null, source: 'email',
+        });
       }
     }
 
@@ -229,11 +340,36 @@ async function processMessage(
       [userId, invoiceId, inv.invoice_number, inv.vendor, inv.amount, inv.currency,
        `Auto-extracted from Outlook: ${msg.subject} -> ${uploaded.webUrl ?? folder}`],
     );
+    alog.info(
+      { invoiceId, vendor: inv.vendor, amount: inv.amount, currency: inv.currency, onedriveUrl: uploaded.webUrl },
+      'invoice saved',
+    );
+    counts.saved += 1;
   }
+
+  return counts;
 }
 
-/** Process one connection: fetch new messages since cursor, handle each. */
-export async function syncConnection(connectionId: string, userId: string): Promise<void> {
+/**
+ * Process one connection: fetch new messages since cursor, handle each.
+ * Every extracted invoice is filed into `storeConnectionId`'s OneDrive — the
+ * user's chosen Microsoft account — regardless of which mailbox it came from.
+ * If the user hasn't picked a storage account yet, skip (nothing can be filed).
+ */
+export async function syncConnection(
+  connectionId: string,
+  userId: string,
+  provider: Provider,
+  storeConnectionId: string | null,
+): Promise<SyncCounts> {
+  const clog = log.child({ connectionId, provider });
+  const totals = emptyCounts();
+
+  if (!storeConnectionId) {
+    clog.warn('skip: no invoice storage account selected — pick a Microsoft mailbox in the app');
+    return totals;
+  }
+
   const state = await pool.query(
     `INSERT INTO invoice_sync_state (connected_account_id)
      VALUES ($1) ON CONFLICT (connected_account_id) DO UPDATE SET last_run_at = now()
@@ -242,10 +378,15 @@ export async function syncConnection(connectionId: string, userId: string): Prom
   );
   const since: Date = state.rows[0].last_received_at;
 
-  const messages = await listNewMessages(connectionId, since.toISOString());
+  const messages = await mailApi(provider).listNewMessages(connectionId, since.toISOString());
+  clog.info({ since: since.toISOString(), messages: messages.length }, 'connection: fetched new messages');
+
   for (const msg of messages) {
     try {
-      await processMessage(connectionId, userId, msg);
+      const c = await processMessage(connectionId, userId, provider, storeConnectionId, msg, clog);
+      totals.saved += c.saved;
+      totals.duplicates += c.duplicates;
+      totals.skipped += c.skipped;
       // Advance the cursor after EACH message so one bad email doesn't
       // block progress forever, but is retried at most until cursor passes.
       await pool.query(
@@ -258,7 +399,13 @@ export async function syncConnection(connectionId: string, userId: string): Prom
         `UPDATE invoice_sync_state SET last_error = $2 WHERE connected_account_id = $1`,
         [connectionId, String(err).slice(0, 500)],
       );
+      clog.error({ messageId: msg.id, err }, 'message processing failed; stopping this connection run');
       throw err; // stop this connection's run; scheduler isolates per connection
     }
   }
+
+  if (messages.length) {
+    clog.info({ ...totals }, 'connection: run complete');
+  }
+  return totals;
 }

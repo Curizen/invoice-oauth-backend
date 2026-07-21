@@ -3,322 +3,98 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Sign in — Invoice OAuth starter</title>
+<title>Sign in — Curizen Portal</title>
+<link rel="stylesheet" href="/portal.css" />
 <style>
-  * { box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #f5f5f7;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    margin: 0;
   }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .brand .mark {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand .mark svg { width: 17px; height: 17px; }
+  .brand span { font-family: var(--font-heading); font-weight: 700; font-size: 18px; }
+
   .card {
     background: #fff;
+    border: 1px solid var(--card-border);
     border-radius: 12px;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
     padding: 2rem;
     width: 100%;
     max-width: 360px;
   }
-  h1 { font-size: 1.25rem; margin: 0 0 1rem; }
-  .tabs { display: flex; margin-bottom: 1rem; border-bottom: 1px solid #e2e2e5; }
-  .tab {
-    flex: 1;
-    padding: 0.5rem;
-    text-align: center;
-    cursor: pointer;
-    border: none;
-    background: none;
-    font-size: 0.95rem;
-    color: #888;
-    border-bottom: 2px solid transparent;
-  }
-  .tab.active { color: #111; border-bottom-color: #111; font-weight: 600; }
-  form { display: flex; flex-direction: column; gap: 0.6rem; }
+  h1 { font-size: 1.1rem; margin: 0 0 1.2rem; text-align: center; color: var(--subtitle); font-weight: 500; font-family: var(--font-body); }
+  form { display: flex; flex-direction: column; gap: 0.55rem; }
   input {
     padding: 0.6rem 0.7rem;
-    border: 1px solid #d5d5da;
-    border-radius: 6px;
+    border: 1px solid #d7dae2;
+    border-radius: 8px;
     font-size: 0.95rem;
+    font-family: var(--font-body);
   }
+  input.invalid { border-color: #c0392b; }
   button.primary {
     padding: 0.6rem 0.7rem;
     border: none;
-    border-radius: 6px;
-    background: #111;
+    border-radius: 8px;
+    background: var(--accent);
     color: #fff;
     font-size: 0.95rem;
+    font-weight: 600;
+    font-family: var(--font-body);
     cursor: pointer;
-    margin-top: 0.2rem;
+    margin-top: 0.3rem;
   }
-  button.primary:hover { background: #333; }
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin: 1.1rem 0;
-    color: #999;
-    font-size: 0.8rem;
+  button.primary:hover { background: var(--accent-dark); }
+  button.primary:disabled { background: #c7ccd6; cursor: default; }
+  .field-error {
+    color: #c0392b;
+    font-size: 0.78rem;
+    min-height: 0.9em;
+    margin: -0.25rem 0 0;
   }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #e2e2e5;
+  .form-error {
+    color: #c0392b;
+    font-size: 0.85rem;
+    min-height: 0.9em;
   }
-  button.google {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.55rem 0.7rem;
-    border: 1px solid #d5d5da;
-    border-radius: 6px;
-    background: #fff;
-    font-size: 0.9rem;
-    cursor: pointer;
-    width: 100%;
-  }
-  button.google:hover { background: #f7f7f8; }
-  .msg { font-size: 0.85rem; margin-top: 0.7rem; min-height: 1.1em; }
-  .msg.error { color: #c0392b; }
-  .msg.ok { color: #1e7e34; }
-  .otp-intro { font-size: 0.9rem; color: #444; margin: 0 0 0.8rem; }
-  .otp-intro strong { color: #111; }
-  input#otp-code {
-    letter-spacing: 0.3em;
-    text-align: center;
-    font-size: 1.1rem;
-  }
-  .otp-links {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8rem;
-    margin-top: 0.7rem;
-  }
-  .link-btn {
-    background: none;
-    border: none;
-    padding: 0;
-    color: #555;
-    cursor: pointer;
-    font-size: 0.8rem;
-    text-decoration: underline;
-  }
-  .link-btn:disabled { color: #bbb; cursor: default; text-decoration: none; }
 </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Invoice OAuth starter</h1>
-    <div class="tabs" id="tabs">
-      <button class="tab active" id="tab-signin" type="button">Sign in</button>
-      <button class="tab" id="tab-signup" type="button">Sign up</button>
+  <div>
+    <div class="brand">
+      <span class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12 12 4l8 8" /><path d="M6 10.5V19a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8.5" />
+        </svg>
+      </span>
+      <span>Curizen Portal</span>
     </div>
+    <div class="card">
+      <h1>Sign in to Curizen Portal</h1>
 
-    <form id="auth-form">
-      <input type="email" id="email" placeholder="Email" autocomplete="email" required />
-      <input type="password" id="password" placeholder="Password" autocomplete="current-password" required />
-      <button class="primary" type="submit" id="submit-btn">Sign in</button>
-    </form>
-
-    <div id="otp-section" style="display:none">
-      <p class="otp-intro">We sent a 6-digit code to <strong id="otp-email"></strong></p>
-      <form id="otp-form">
-        <input type="text" id="otp-code" placeholder="000000" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" required />
-        <button class="primary" type="submit">Verify</button>
+      <form id="signin-form" novalidate>
+        <input type="email" id="si-email" placeholder="Email" autocomplete="email" />
+        <div class="field-error" id="si-email-err"></div>
+        <input type="password" id="si-password" placeholder="Password" autocomplete="current-password" />
+        <div class="field-error" id="si-password-err"></div>
+        <div class="form-error" id="si-error"></div>
+        <button class="primary" type="submit" id="si-submit">Sign in</button>
       </form>
-      <div class="otp-links">
-        <button class="link-btn" id="otp-back" type="button">Use a different email</button>
-        <button class="link-btn" id="otp-resend" type="button">Resend code</button>
-      </div>
     </div>
-
-    <div class="msg" id="msg"></div>
-
-    <div class="divider" id="divider">or</div>
-
-    <button class="google" id="google-btn" type="button">Continue with Google</button>
   </div>
 
-  <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-    const cfg = await fetch('/config').then((r) => r.json());
-    const supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-
-    let mode = 'signin';
-    let pendingEmail = '';
-    let resendTimer = null;
-    const tabSignin = document.getElementById('tab-signin');
-    const tabSignup = document.getElementById('tab-signup');
-    const submitBtn = document.getElementById('submit-btn');
-    const msg = document.getElementById('msg');
-    const tabs = document.getElementById('tabs');
-    const authForm = document.getElementById('auth-form');
-    const otpSection = document.getElementById('otp-section');
-    const otpForm = document.getElementById('otp-form');
-    const otpCode = document.getElementById('otp-code');
-    const otpEmail = document.getElementById('otp-email');
-    const otpResend = document.getElementById('otp-resend');
-    const otpBack = document.getElementById('otp-back');
-    const divider = document.getElementById('divider');
-    const googleBtn = document.getElementById('google-btn');
-
-    function goToApp() {
-      const params = new URLSearchParams(window.location.search);
-      const onboard = params.get('onboard');
-      window.location.href = '/app.html' + (onboard ? `?onboard=${encodeURIComponent(onboard)}` : '');
-    }
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      goToApp();
-    }
-
-    function setMode(next) {
-      mode = next;
-      tabSignin.classList.toggle('active', mode === 'signin');
-      tabSignup.classList.toggle('active', mode === 'signup');
-      submitBtn.textContent = mode === 'signin' ? 'Sign in' : 'Sign up';
-      msg.textContent = '';
-      msg.className = 'msg';
-    }
-    tabSignin.addEventListener('click', () => setMode('signin'));
-    tabSignup.addEventListener('click', () => setMode('signup'));
-
-    function stopResendCooldown() {
-      if (resendTimer) clearInterval(resendTimer);
-      resendTimer = null;
-      otpResend.disabled = false;
-      otpResend.textContent = 'Resend code';
-    }
-
-    function startResendCooldown() {
-      let remaining = 60;
-      otpResend.disabled = true;
-      otpResend.textContent = `Resend code (${remaining}s)`;
-      if (resendTimer) clearInterval(resendTimer);
-      resendTimer = setInterval(() => {
-        remaining -= 1;
-        if (remaining <= 0) {
-          stopResendCooldown();
-        } else {
-          otpResend.textContent = `Resend code (${remaining}s)`;
-        }
-      }, 1000);
-    }
-
-    function showOtpStep(email) {
-      pendingEmail = email;
-      otpEmail.textContent = email;
-      otpCode.value = '';
-      tabs.style.display = 'none';
-      authForm.style.display = 'none';
-      divider.style.display = 'none';
-      googleBtn.style.display = 'none';
-      otpSection.style.display = '';
-      msg.textContent = '';
-      msg.className = 'msg';
-      startResendCooldown();
-      otpCode.focus();
-    }
-
-    function hideOtpStep() {
-      otpSection.style.display = 'none';
-      tabs.style.display = '';
-      authForm.style.display = '';
-      divider.style.display = '';
-      googleBtn.style.display = '';
-      stopResendCooldown();
-      pendingEmail = '';
-    }
-
-    otpBack.addEventListener('click', () => {
-      hideOtpStep();
-      setMode('signin');
-    });
-
-    otpForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      msg.textContent = 'Verifying…';
-      msg.className = 'msg';
-
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: pendingEmail,
-        token: otpCode.value.trim(),
-        type: 'signup',
-      });
-
-      if (error || !data.session) {
-        msg.textContent = 'Invalid or expired code';
-        msg.className = 'msg error';
-        return;
-      }
-
-      goToApp();
-    });
-
-    otpResend.addEventListener('click', async () => {
-      if (otpResend.disabled) return;
-      msg.textContent = '';
-      msg.className = 'msg';
-
-      const { error } = await supabase.auth.resend({ type: 'signup', email: pendingEmail });
-
-      if (error) {
-        msg.textContent =
-          error.status === 429 || /rate limit/i.test(error.message)
-            ? 'Too many attempts, try again in a minute'
-            : error.message;
-        msg.className = 'msg error';
-        return;
-      }
-
-      msg.textContent = 'Code resent.';
-      msg.className = 'msg ok';
-      startResendCooldown();
-    });
-
-    document.getElementById('auth-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      msg.textContent = 'Working…';
-      msg.className = 'msg';
-
-      const { data, error } =
-        mode === 'signin'
-          ? await supabase.auth.signInWithPassword({ email, password })
-          : await supabase.auth.signUp({ email, password });
-
-      if (error) {
-        if (mode === 'signin' && /email not confirmed/i.test(error.message)) {
-          showOtpStep(email);
-          return;
-        }
-        msg.textContent = error.message;
-        msg.className = 'msg error';
-        return;
-      }
-
-      if (mode === 'signup' && !data.session) {
-        showOtpStep(email);
-        return;
-      }
-
-      goToApp();
-    });
-
-    document.getElementById('google-btn').addEventListener('click', async () => {
-      await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin + '/app.html' },
-      });
-    });
-  </script>
+  <script type="module" src="/js/login.js"></script>
 </body>
 </html>
