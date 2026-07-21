@@ -31,7 +31,28 @@ const labelEl = document.getElementById('period-label');
 const acctEl = document.getElementById('acct');
 const sendBtn = document.getElementById('send-btn');
 const sendStatus = document.getElementById('send-status');
+const quarterPicker = document.getElementById('quarter-picker');
+const qQuarterEl = document.getElementById('q-quarter');
+const qYearEl = document.getElementById('q-year');
 let period = 'monthly';
+
+// Quarter picker's year dropdown: this year back to 5 years ago.
+const thisYear = new Date().getFullYear();
+for (let y = thisYear; y >= thisYear - 5; y--) {
+  const opt = document.createElement('option');
+  opt.value = String(y);
+  opt.textContent = String(y);
+  qYearEl.appendChild(opt);
+}
+// Default to the most recently completed quarter, matching the tab's own default.
+{
+  const m = new Date().getMonth();
+  const q = Math.floor(m / 3); // 0..3 of the CURRENT quarter
+  const prevQ = q === 0 ? 4 : q;
+  const prevQYear = q === 0 ? thisYear - 1 : thisYear;
+  qQuarterEl.value = String(prevQ);
+  qYearEl.value = String(prevQYear);
+}
 
 const money = (n, cur) => (cur === 'USD' ? '$' : '') + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (cur === 'USD' ? '' : ' ' + cur);
 
@@ -43,18 +64,30 @@ function rowsTable(items, cur) {
   return `<table class="data-table"><tr><th>Name</th><th class="num">Amount</th></tr>${body}</table>`;
 }
 
+function reportParams() {
+  const params = new URLSearchParams({ period });
+  if (period === 'quarterly') {
+    params.set('quarter', qQuarterEl.value);
+    params.set('year', qYearEl.value);
+  }
+  return params;
+}
+
 async function loadReport() {
   labelEl.textContent = 'Loading…';
-  const res = await authedFetch(`/api/reports?period=${period}`);
+  const res = await authedFetch(`/api/reports?${reportParams()}`);
   const d = await res.json();
   if (!res.ok) { labelEl.textContent = d.error || 'Failed to load.'; return; }
   labelEl.textContent = `Period: ${d.periodLabel}`;
   const dir = d.pctChange > 0 ? 'up' : d.pctChange < 0 ? 'down' : 'flat';
   const arrow = d.pctChange > 0 ? '▲' : d.pctChange < 0 ? '▼' : '▬';
+  const priorCard = d.hasPrior
+    ? `<div class="stat-card"><div class="label">vs prior (${money(d.prevTotal, d.baseCurrency)})</div><div class="value ${dir}">${arrow} ${Math.abs(d.pctChange).toFixed(1)}%</div></div>`
+    : '';
   cardsEl.innerHTML = `
     <div class="stat-card"><div class="label">Total spend</div><div class="value">${money(d.total, d.baseCurrency)}</div></div>
     <div class="stat-card"><div class="label">Invoices</div><div class="value">${d.count}</div></div>
-    <div class="stat-card"><div class="label">vs prior (${money(d.prevTotal, d.baseCurrency)})</div><div class="value ${dir}">${arrow} ${Math.abs(d.pctChange).toFixed(1)}%</div></div>`;
+    ${priorCard}`;
   vendorsEl.innerHTML = rowsTable(d.topVendors, d.baseCurrency);
   catsEl.innerHTML = rowsTable(d.byCategory, d.baseCurrency);
 }
@@ -83,14 +116,20 @@ document.getElementById('tabs').addEventListener('click', (e) => {
   document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
   btn.classList.add('active');
   period = btn.dataset.period;
+  quarterPicker.style.display = period === 'quarterly' ? '' : 'none';
   loadReport();
 });
+
+qQuarterEl.addEventListener('change', loadReport);
+qYearEl.addEventListener('change', loadReport);
 
 sendBtn.addEventListener('click', async () => {
   const connectionId = acctEl.value;
   if (!connectionId) return;
   sendBtn.disabled = true; sendStatus.textContent = 'Sending…'; sendStatus.style.color = '';
-  const res = await authedFetch('/api/reports/send', { method: 'POST', body: JSON.stringify({ period, connectionId }) });
+  const body = { period, connectionId };
+  if (period === 'quarterly') { body.quarter = Number(qQuarterEl.value); body.year = Number(qYearEl.value); }
+  const res = await authedFetch('/api/reports/send', { method: 'POST', body: JSON.stringify(body) });
   const d = await res.json().catch(() => ({}));
   sendBtn.disabled = false;
   if (res.ok) { sendStatus.textContent = `Sent to ${d.sentTo} ✓`; }

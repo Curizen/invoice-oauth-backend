@@ -1,19 +1,28 @@
 import { Router, type Request, type Response } from 'express';
 import { getConnection, pool } from './db.js';
 import { logger } from './logger.js';
-import { buildReport, reportHtml, type PeriodType } from './reports.js';
+import { buildReport, reportHtml, type PeriodType, type RangeOpts } from './reports.js';
 import { sendMailViaConnection } from './mailSend.js';
 
 export const reportRoutes = Router();
 
 function parsePeriod(v: unknown): PeriodType {
-  return v === 'quarterly' || v === 'yearly' ? v : 'monthly';
+  return v === 'quarterly' || v === 'yearly' || v === 'all' ? v : 'monthly';
+}
+
+function parseRangeOpts(query: { quarter?: unknown; year?: unknown }): RangeOpts {
+  const quarter = Number(query.quarter);
+  const year = Number(query.year);
+  return {
+    quarter: Number.isInteger(quarter) && quarter >= 1 && quarter <= 4 ? quarter : undefined,
+    year: Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : undefined,
+  };
 }
 
 // Report data for the UI.
 reportRoutes.get('/reports', async (req: Request, res: Response) => {
   try {
-    const data = await buildReport(req.userId!, parsePeriod(req.query.period));
+    const data = await buildReport(req.userId!, parsePeriod(req.query.period), parseRangeOpts(req.query));
     res.json(data);
   } catch (err) {
     logger.error({ err }, 'build report failed');
@@ -44,14 +53,14 @@ reportRoutes.get('/anomalies', async (req: Request, res: Response) => {
 
 // Email the report from one of the user's connected mailboxes (to itself).
 reportRoutes.post('/reports/send', async (req: Request, res: Response) => {
-  const body = req.body as { period?: string; connectionId?: string };
+  const body = req.body as { period?: string; connectionId?: string; quarter?: number; year?: number };
   if (!body.connectionId) return res.status(400).json({ error: 'connectionId required' });
   try {
     const conn = await getConnection(body.connectionId);
     if (!conn || conn.user_id !== req.userId) return res.status(404).json({ error: 'connection not found' });
 
     const period = parsePeriod(body.period);
-    const data = await buildReport(req.userId!, period);
+    const data = await buildReport(req.userId!, period, parseRangeOpts(body));
     const subject = `Your ${data.periodType} financial report — ${data.periodLabel}`;
     try {
       await sendMailViaConnection(conn.id, conn.provider, {

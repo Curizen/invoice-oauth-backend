@@ -5,6 +5,11 @@
 <style>
   .send { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
   .send select { padding: 9px 10px; border: 1px solid #ddd3bf; border-radius: 10px; font-size: 13.5px; }
+  .quarter-picker { display: flex; gap: 0.5rem; align-items: center; margin: -10px 0 20px; }
+  .quarter-picker select {
+    padding: 7px 10px; border: 1px solid #ddd3bf; border-radius: 999px; font-size: 13px;
+    font-family: var(--font-body); background: #fff; color: var(--text); cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -20,6 +25,17 @@
         <button class="tab active" data-period="monthly">Monthly</button>
         <button class="tab" data-period="quarterly">Quarterly</button>
         <button class="tab" data-period="yearly">Yearly</button>
+        <button class="tab" data-period="all">All time</button>
+      </div>
+
+      <div class="quarter-picker" id="quarter-picker" style="display:none">
+        <select id="q-quarter">
+          <option value="1">Q1</option>
+          <option value="2">Q2</option>
+          <option value="3">Q3</option>
+          <option value="4">Q4</option>
+        </select>
+        <select id="q-year"></select>
       </div>
 
       <div class="stat-row" id="cards"></div>
