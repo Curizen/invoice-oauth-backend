@@ -30,6 +30,20 @@ const cameraUse = document.getElementById('camera-use');
 const cameraRetake = document.getElementById('camera-retake');
 const cameraCancel = document.getElementById('camera-cancel');
 
+const uploadReview = document.getElementById('upload-review');
+const urVendor = document.getElementById('ur-vendor');
+const urNumber = document.getElementById('ur-number');
+const urAmount = document.getElementById('ur-amount');
+const urCurrency = document.getElementById('ur-currency');
+const urCategory = document.getElementById('ur-category');
+const urDate = document.getElementById('ur-date');
+const urDue = document.getElementById('ur-due');
+const urTax = document.getElementById('ur-tax');
+const urDescription = document.getElementById('ur-description');
+const urConfirm = document.getElementById('ur-confirm');
+const urCancel = document.getElementById('ur-cancel');
+const urErr = document.getElementById('ur-err');
+
 function badgeClass(status) {
   if (status === 'active') return 'active';
   if (status === 'reauth_required') return 'reauth_required';
@@ -158,7 +172,7 @@ async function saveStorage() {
 storageSelect.addEventListener('change', reflectStorageState);
 storageSave.addEventListener('click', saveStorage);
 
-// Manual invoice upload: read file -> base64 -> POST /upload-invoice.
+// Manual invoice upload: read file -> base64 -> extract -> review -> confirm.
 function fileToBase64(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -199,32 +213,51 @@ async function loadAnomalies() {
   } catch { /* panel is optional; leave hidden on failure */ }
 }
 
+// Holds the file + extracted fields between "extract" and "confirm" so the
+// review panel can send them back without re-reading the file.
+let pendingUpload = null;
+
+function fillReview(extracted) {
+  urVendor.value = extracted.vendor ?? '';
+  urNumber.value = extracted.invoice_number ?? '';
+  urAmount.value = extracted.amount ?? '';
+  urCurrency.value = (extracted.currency ?? 'USD').toUpperCase();
+  urCategory.value = extracted.category ?? 'other';
+  urDate.value = extracted.invoice_date ?? '';
+  urDue.value = extracted.due_date ?? '';
+  urTax.value = extracted.tax_amount ?? 0;
+  urDescription.value = extracted.description ?? '';
+  urErr.style.display = 'none';
+  urErr.textContent = '';
+  uploadReview.style.display = '';
+}
+
+function closeReview() {
+  uploadReview.style.display = 'none';
+  pendingUpload = null;
+}
+
 async function uploadFile(blob, filename, contentType) {
   uploadBtn.disabled = true;
   cameraBtn.disabled = true;
-  uploadStatus.textContent = 'Uploading & extracting…';
+  uploadStatus.textContent = 'Reading & extracting…';
   uploadWarning.style.display = 'none';
   uploadWarning.textContent = '';
+  closeReview();
   try {
     const dataBase64 = await fileToBase64(blob);
-    const res = await authedFetch('/upload-invoice', {
+    const res = await authedFetch('/upload-invoice/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename, contentType, dataBase64 }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      uploadStatus.textContent = data.error || 'Upload failed.';
-    } else if (data.status === 'duplicate') {
-      uploadStatus.textContent = `Already have this one: ${data.vendor} (duplicate, not saved).`;
+      uploadStatus.textContent = data.error || 'Could not read the file.';
     } else {
-      uploadStatus.textContent = `✓ Saved: ${data.vendor} — ${data.amount} ${data.currency}`;
-      uploadInput.value = '';
-      if (data.anomaly) {
-        uploadWarning.textContent = `⚠ Anomaly (${data.anomaly.level}): ${data.anomaly.insight}`;
-        uploadWarning.style.display = '';
-        loadAnomalies();
-      }
+      pendingUpload = { filename, contentType, dataBase64 };
+      fillReview(data.extracted);
+      uploadStatus.textContent = 'Check the extracted fields below before saving — dates and amounts from photos are sometimes misread.';
     }
   } catch (err) {
     uploadStatus.textContent = 'Upload error — please try again.';
@@ -239,7 +272,66 @@ uploadBtn.addEventListener('click', async () => {
   await uploadFile(file, file.name, file.type);
 });
 
-// Camera capture: live preview -> snap a frame -> same /upload-invoice flow.
+urCancel.addEventListener('click', () => {
+  closeReview();
+  uploadStatus.textContent = 'Discarded — nothing was saved.';
+});
+
+urConfirm.addEventListener('click', async () => {
+  if (!pendingUpload) return;
+  const amount = Number(urAmount.value);
+  if (!urVendor.value.trim()) { urErr.textContent = 'Vendor is required.'; urErr.style.display = ''; return; }
+  if (!Number.isFinite(amount) || amount < 0) { urErr.textContent = 'Enter a valid amount.'; urErr.style.display = ''; return; }
+  urErr.style.display = 'none';
+  urConfirm.disabled = true;
+  urConfirm.textContent = 'Saving…';
+  try {
+    const res = await authedFetch('/upload-invoice/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...pendingUpload,
+        invoice: {
+          vendor: urVendor.value.trim(),
+          invoice_number: urNumber.value.trim() || null,
+          amount,
+          currency: urCurrency.value.trim() || 'USD',
+          invoice_date: urDate.value || null,
+          due_date: urDue.value || null,
+          category: urCategory.value,
+          description: urDescription.value.trim(),
+          tax_amount: Number(urTax.value) || 0,
+        },
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      urErr.textContent = data.error || 'Save failed.';
+      urErr.style.display = '';
+      return;
+    }
+    if (data.status === 'duplicate') {
+      uploadStatus.textContent = `Already have this one: ${data.vendor} (duplicate, not saved).`;
+    } else {
+      uploadStatus.textContent = `✓ Saved: ${data.vendor} — ${data.amount} ${data.currency}`;
+      uploadInput.value = '';
+      if (data.anomaly) {
+        uploadWarning.textContent = `⚠ Anomaly (${data.anomaly.level}): ${data.anomaly.insight}`;
+        uploadWarning.style.display = '';
+        loadAnomalies();
+      }
+    }
+    closeReview();
+  } catch (err) {
+    urErr.textContent = 'Save error — please try again.';
+    urErr.style.display = '';
+  } finally {
+    urConfirm.disabled = false;
+    urConfirm.textContent = 'Confirm & save';
+  }
+});
+
+// Camera capture: live preview -> snap a frame -> same extract/review/confirm flow.
 let cameraStream = null;
 function closeCamera() {
   if (cameraStream) { cameraStream.getTracks().forEach((t) => t.stop()); cameraStream = null; }

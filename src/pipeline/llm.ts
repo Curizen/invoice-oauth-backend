@@ -24,7 +24,20 @@ export interface ExtractedInvoice {
   tax_amount: number;
 }
 
+const DATE_RULES = `DATE RULES (read carefully — dates are frequently misread):
+- Always output dates as YYYY-MM-DD.
+- Invoices use different regional formats (DD/MM/YYYY, MM/DD/YYYY, DD.MM.YYYY, etc.). Never assume
+  month-first. If the first number is > 12, it must be the day (e.g. 25/03/2026 -> 2026-03-25).
+  If both numbers could be a valid month, look for the month spelled out elsewhere on the document,
+  or any other date on the page (e.g. due date) that disambiguates the format, before guessing.
+- A 2-digit year is 20YY unless the document clearly indicates otherwise.
+- If a date is smudged, cropped, at an angle, or you are not reasonably confident in every digit,
+  output null for that field rather than guessing — a missing date can be filled in by a human, a
+  wrong one silently corrupts the record.`;
+
 const PROMPT = (email: EmailMeta, attachmentName: string, pdfText: string) => `Extract all invoice fields from this email and its attached PDF invoice.
+
+TODAY'S DATE: ${new Date().toISOString().slice(0, 10)}
 
 EMAIL SUBJECT: ${email.subject}
 FROM EMAIL: ${email.fromAddress || 'unknown'}
@@ -41,8 +54,15 @@ INSTRUCTIONS:
 - The PDF contains the actual invoice — prioritize data from it over the email body
 - If a field is not found in the PDF, try extracting it from the email subject or body
 - The vendor is usually the company that sent the invoice
+- If the total amount is unclear (multiple totals, tax lines, discounts), prefer the amount
+  explicitly labeled "Total" / "Amount Due" / "Grand Total" over a subtotal
+- If you are not confident about a field's value, output null (for optional fields) or your best
+  single guess only for required fields — never fabricate specifics (invoice numbers, exact cents)
+  that aren't legible
 - Return ONLY a raw JSON object, no markdown, no code blocks, no explanation
 - Start with { and end with }
+
+${DATE_RULES}
 
 Return JSON with exactly these fields:
 - vendor (company name issuing the invoice)
@@ -110,10 +130,22 @@ export async function extractInvoiceFields(
   return parseInvoiceJson(raw, email.fromName);
 }
 
-const IMAGE_PROMPT = (filename: string) => `You are given an image of an invoice or receipt (filename: ${filename}). Read the image and extract all invoice fields.
+const IMAGE_PROMPT = (filename: string) => `You are given a photo of an invoice or receipt (filename: ${filename}). Read the image carefully and extract all invoice fields.
 
+TODAY'S DATE: ${new Date().toISOString().slice(0, 10)}
+
+This is a phone photo, not a scan — expect glare, tilt, shadows, or partially cropped edges.
+Zoom into small text (dates, invoice numbers, totals) mentally before answering; do not skim.
+
+- If the total amount is unclear (multiple totals, tax lines, discounts), prefer the amount
+  explicitly labeled "Total" / "Amount Due" / "Grand Total" over a subtotal
+- If you are not confident about a field's value, output null (for optional fields) or your best
+  single guess only for required fields — never fabricate specifics (invoice numbers, exact cents)
+  that aren't legible
 - Return ONLY a raw JSON object, no markdown, no code blocks, no explanation
 - Start with { and end with }
+
+${DATE_RULES}
 
 Return JSON with exactly these fields:
 - vendor (company name issuing the invoice)
@@ -146,7 +178,11 @@ export async function extractInvoiceFromImage(
           role: 'user',
           content: [
             { type: 'text', text: IMAGE_PROMPT(filename) },
-            { type: 'image_url', image_url: { url: `data:${contentType};base64,${imageBase64}` } },
+            // 'high' detail keeps the model reading a higher-resolution tiled
+            // version of the image instead of a single downscaled pass — the
+            // default otherwise blurs exactly the small text (dates, invoice
+            // numbers) this app depends on getting right.
+            { type: 'image_url', image_url: { url: `data:${contentType};base64,${imageBase64}`, detail: 'high' } },
           ],
         },
       ],

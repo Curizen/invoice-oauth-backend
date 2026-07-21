@@ -41,15 +41,12 @@ function buildPath(inv: ExtractedInvoice, originalName: string): { folder: strin
   };
 }
 
-export async function saveUploadedInvoice(opts: {
-  userId: string;
-  storeConnectionId: string;
-  actorName: string;
-  filename: string;
-  contentType: string;
-  buffer: Buffer;
-}): Promise<UploadResult> {
-  const { userId, storeConnectionId, actorName, filename, contentType, buffer } = opts;
+/** Just the field extraction, no side effects — used for the review-before-save flow. */
+export async function extractUploadedInvoice(
+  buffer: Buffer,
+  contentType: string,
+  filename: string,
+): Promise<ExtractedInvoice> {
   const ct = (contentType || '').toLowerCase();
   const isPdf = ct.includes('pdf');
   const isImage = ct.includes('image');
@@ -75,6 +72,25 @@ export async function saveUploadedInvoice(opts: {
     inv = await extractInvoiceFromImage(buffer.toString('base64'), contentType, filename);
   }
   flog.info({ vendor: inv.vendor, amount: inv.amount, currency: inv.currency }, 'extracted invoice fields');
+  return inv;
+}
+
+export async function saveUploadedInvoice(opts: {
+  userId: string;
+  storeConnectionId: string;
+  actorName: string;
+  filename: string;
+  contentType: string;
+  buffer: Buffer;
+  // Pre-extracted (and possibly user-corrected) fields, e.g. from the
+  // review-before-save flow. When omitted, extraction runs here instead —
+  // kept for the voice assistant's single-shot upload path.
+  invoice?: ExtractedInvoice;
+}): Promise<UploadResult> {
+  const { userId, storeConnectionId, actorName, filename, contentType, buffer } = opts;
+  const flog = log.child({ filename });
+
+  const inv = opts.invoice ?? (await extractUploadedInvoice(buffer, contentType, filename));
 
   const invoiceDate = inv.invoice_date ?? new Date().toISOString().slice(0, 10);
 

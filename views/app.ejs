@@ -123,6 +123,39 @@
           </div>
           <p class="muted-text" style="margin-top:10px">Files are filed into your chosen OneDrive and the invoice fields are extracted automatically.</p>
           <p class="warn-text" id="upload-warning" style="display:none;margin-top:6px"></p>
+
+          <!-- AI extraction review: prefilled from GPT-4o, editable, saved on Confirm only. -->
+          <div id="upload-review" style="display:none">
+            <h3>Review extracted invoice details — nothing is saved until you confirm</h3>
+            <div class="form-row" style="margin-bottom:0.6rem">
+              <div class="field"><label>Vendor</label><input id="ur-vendor" type="text" /></div>
+              <div class="field"><label>Invoice number</label><input id="ur-number" type="text" /></div>
+              <div class="field"><label>Amount</label><input id="ur-amount" type="number" min="0" step="0.01" /></div>
+              <div class="field"><label>Currency</label><input id="ur-currency" class="cur" type="text" maxlength="3" /></div>
+              <div class="field"><label>Category</label>
+                <select id="ur-category">
+                  <option value="software">software</option>
+                  <option value="office_supplies">office_supplies</option>
+                  <option value="travel">travel</option>
+                  <option value="equipment">equipment</option>
+                  <option value="utilities">utilities</option>
+                  <option value="services">services</option>
+                  <option value="other">other</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom:0.8rem">
+              <div class="field"><label>Invoice date</label><input id="ur-date" type="date" /></div>
+              <div class="field"><label>Due date</label><input id="ur-due" type="date" /></div>
+              <div class="field"><label>Tax amount</label><input id="ur-tax" type="number" min="0" step="0.01" /></div>
+              <div class="field" style="flex:1; min-width:200px"><label>Description</label><input id="ur-description" type="text" /></div>
+            </div>
+            <div class="form-row">
+              <button id="ur-confirm" class="btn" type="button">Confirm &amp; save</button>
+              <button id="ur-cancel" class="btn secondary" type="button">Discard</button>
+            </div>
+            <p class="err-text" id="ur-err" style="display:none"></p>
+          </div>
         </div>
 
         <!-- Recent spending anomalies (from anomaly_log via GET /anomalies) -->
@@ -131,7 +164,7 @@
           <div id="anomaly-list"></div>
         </div>
 
-        <!-- In-page camera capture: the photo goes through the same /upload-invoice flow -->
+        <!-- In-page camera capture: the photo goes through the same extract → review → confirm flow -->
         <div id="camera-modal" style="display:none">
           <video id="camera-video" autoplay playsinline muted></video>
           <canvas id="camera-canvas" style="display:none"></canvas>
