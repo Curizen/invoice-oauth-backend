@@ -303,7 +303,7 @@ async function disconnectConnection(id) {
 
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) {
-  window.location.href = '/login.html';
+  window.location.href = '/login';
 } else {
   // Cookie must be set before any /connect/* link is clickable — the
   // browser-redirect OAuth routes authenticate via this cookie.
@@ -314,7 +314,7 @@ if (!session) {
     onSignOut: async () => {
       await supabase.auth.signOut();
       clearSbCookie();
-      window.location.href = '/login.html';
+      window.location.href = '/login';
     },
     onChangePassword: async (password) => {
       const { error } = await supabase.auth.updateUser({ password });
@@ -327,7 +327,7 @@ if (!session) {
       setSbCookie(newSession.access_token);
     } else {
       clearSbCookie();
-      window.location.href = '/login.html';
+      window.location.href = '/login';
     }
   });
 

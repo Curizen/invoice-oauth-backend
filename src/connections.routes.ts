@@ -110,7 +110,7 @@ connections.get('/callback/:provider', async (req: Request, res: Response) => {
     await audit(conn.id, 'connected', { email: identity.email });
 
     // TODO: enqueue initial backfill job + register Gmail watch / Graph subscription here.
-    res.redirect('/app.html');
+    res.redirect('/app');
   } catch (err) {
     logger.error({ err }, 'OAuth callback failed');
     res.status(500).send('Failed to complete the connection. Please try again.');

@@ -21,11 +21,11 @@ const ICONS = {
 };
 
 const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', href: '/app.html', icon: 'dashboard' },
-  { key: 'voice', label: 'invoice chat', href: '/voice.html', icon: 'voice' },
-  { key: 'subscriptions', label: 'Subscriptions', href: '/subscriptions.html', icon: 'subscriptions' },
-  { key: 'reports', label: 'Reports', href: '/reports.html', icon: 'reports' },
-  { key: 'employees', label: 'Employees', href: '/employees.html', icon: 'employees' },
+  { key: 'dashboard', label: 'Dashboard', href: '/app', icon: 'dashboard' },
+  { key: 'voice', label: 'invoice chat', href: '/voice', icon: 'voice' },
+  { key: 'subscriptions', label: 'Subscriptions', href: '/subscriptions', icon: 'subscriptions' },
+  { key: 'reports', label: 'Reports', href: '/reports', icon: 'reports' },
+  { key: 'employees', label: 'Employees', href: '/employees', icon: 'employees' },
 ];
 
 function svgIcon(name) {
@@ -39,11 +39,6 @@ export function mountSidebar(activeKey, { email = '', onSignOut, onChangePasswor
   root.innerHTML = `
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <span class="mark">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 12 12 4l8 8" /><path d="M6 10.5V19a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-8.5" />
-          </svg>
-        </span>
         <span>Curizen Portal</span>
       </div>
       <nav class="sidebar-nav">

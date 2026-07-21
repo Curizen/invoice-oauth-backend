@@ -21,6 +21,7 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY db ./db
 COPY public ./public
+COPY views ./views
 
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 USER appuser

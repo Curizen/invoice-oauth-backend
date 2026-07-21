@@ -4,14 +4,14 @@ import { esc, clearSbCookie } from '/js/util.js';
 const cfg = await fetch('/config').then((r) => r.json());
 const supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 const { data: { session } } = await supabase.auth.getSession();
-if (!session) { window.location.href = '/login.html'; }
+if (!session) { window.location.href = '/login'; }
 
 mountSidebar('employees', {
   email: session?.user?.email ?? '',
   onSignOut: async () => {
     await supabase.auth.signOut();
     clearSbCookie();
-    window.location.href = '/login.html';
+    window.location.href = '/login';
   },
   onChangePassword: async (password) => {
     const { error } = await supabase.auth.updateUser({ password });
@@ -56,7 +56,7 @@ async function loadAlerts() {
     const cls = a.type === 'contract_expired' ? 'danger' : a.type === 'no_contract' ? 'info' : 'warn';
     div.className = `alert-item ${cls}`;
     div.textContent = a.message;
-    div.addEventListener('click', () => { window.location.href = `/employee.html?id=${a.employee_id}`; });
+    div.addEventListener('click', () => { window.location.href = `/employee?id=${a.employee_id}`; });
     alertsEl.appendChild(div);
   }
 }
@@ -88,7 +88,7 @@ async function load() {
       <td class="num">${Number(e.salary).toFixed(2)} ${esc(e.salary_currency)}</td>
       <td>${fmtDate(e.contract_start)} → ${e.contract_type === 'indefinite' ? '∞ Indefinite' : fmtDate(e.contract_end)} ${contractBadge(e)}</td>
       <td><span class="badge ${e.status === 'active' ? 'active' : 'inactive'}">${esc(e.status)}</span></td>`;
-    tr.addEventListener('click', () => { window.location.href = `/employee.html?id=${e.id}`; });
+    tr.addEventListener('click', () => { window.location.href = `/employee?id=${e.id}`; });
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
@@ -157,7 +157,7 @@ fileEl.addEventListener('change', async () => {
       return;
     }
     statusEl.textContent = `Created ${d.employee.name} — opening…`;
-    window.location.href = `/employee.html?id=${d.employee.id}`;
+    window.location.href = `/employee?id=${d.employee.id}`;
   } catch {
     statusEl.textContent = '';
     showUploadErr('Upload failed — please try again.');

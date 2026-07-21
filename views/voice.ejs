@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Voice Invoice — Curizen Portal</title>
-<link rel="stylesheet" href="/portal.css" />
+<%- include('partials/head', { title: 'Voice Invoice' }) %>
 <style>
   .content { padding-bottom: 7rem; max-width: 720px; }
   .intro { color: var(--subtitle); font-size: 0.9rem; line-height: 1.5; margin: 0 0 1.2rem; }
@@ -46,12 +43,12 @@
     border-top: 1px solid var(--card-border); padding: 0.7rem 1rem;
   }
   .composer-inner { max-width: 720px; margin: 0 auto; display: flex; gap: 0.5rem; align-items: center; }
-  #text { flex: 1; padding: 0.7rem 0.9rem; border: 1px solid #d7dae2; border-radius: 999px; font-size: 0.95rem; font-family: var(--font-body); }
+  #text { flex: 1; padding: 0.7rem 0.9rem; border: 1px solid #ddd3bf; border-radius: 999px; font-size: 0.95rem; font-family: var(--font-body); }
   .composer button {
     border: none; border-radius: 999px; cursor: pointer; font-size: 0.95rem;
     padding: 0.7rem 1.1rem; background: var(--accent); color: #fff; font-family: var(--font-body); font-weight: 600;
   }
-  .composer button:disabled { background: #c7ccd6; cursor: default; }
+  .composer button:disabled { background: #d9d2c2; cursor: default; }
   #mic.recording { background: #d32f2f; animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
@@ -84,9 +81,7 @@
 </style>
 </head>
 <body>
-  <div class="app-shell">
-    <div id="sidebar-root"></div>
-    <main class="content">
+<%- include('partials/shell-open') %>
       <div class="page-head">
         <div>
           <h1>Voice Invoice</h1>
@@ -99,8 +94,7 @@
         that's missing, then save it.
       </p>
       <div id="chat"></div>
-    </main>
-  </div>
+<%- include('partials/shell-close') %>
 
   <div class="composer">
     <div class="composer-inner">

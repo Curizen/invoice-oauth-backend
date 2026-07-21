@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Employees — Curizen Portal</title>
-<link rel="stylesheet" href="/portal.css" />
+<%- include('partials/head', { title: 'Employees' }) %>
 <style>
   .field input[type="text"] { min-width: 160px; }
   .field input.cur { width: 80px; text-transform: uppercase; }
@@ -13,9 +10,7 @@
 </style>
 </head>
 <body>
-  <div class="app-shell">
-    <div id="sidebar-root"></div>
-    <main class="content">
+<%- include('partials/shell-open') %>
       <div class="page-head">
         <div>
           <h1>Employees</h1>
@@ -53,8 +48,7 @@
         <h2>Employees</h2>
         <div id="e-list"></div>
       </div>
-    </main>
-  </div>
+<%- include('partials/shell-close') %>
 
 <script type="module" src="/js/employees.js"></script>
 </body>

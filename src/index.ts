@@ -45,7 +45,7 @@ app.use(
         connectSrc: ["'self'", 'https://esm.sh', config.supabase.url],
         imgSrc: ["'self'", 'data:'],
         // Recorded voice notes are played back from an in-memory blob: URL
-        // (see public/voice.html) — without this the browser silently
+        // (see views/voice.ejs) — without this the browser silently
         // blocks playback under default-src 'self'.
         mediaSrc: ["'self'", 'blob:'],
         objectSrc: ["'none'"],
@@ -79,9 +79,31 @@ app.get('/config', (req, res) => {
   });
 });
 
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, '..', 'views'));
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-app.get('/', (req, res) => res.redirect('/app.html'));
+const PAGES: Record<string, string> = {
+  '/app': 'app',
+  '/login': 'login',
+  '/employee': 'employee',
+  '/employees': 'employees',
+  '/reports': 'reports',
+  '/subscriptions': 'subscriptions',
+  '/voice': 'voice',
+};
+for (const [route, view] of Object.entries(PAGES)) {
+  app.get(route, (req, res) => res.render(view));
+}
+
+// Old bookmarks/links pointed at the static .html paths — redirect them to
+// the clean routes above instead of 404ing.
+for (const route of Object.keys(PAGES)) {
+  app.get(`${route}.html`, (req, res) => res.redirect(301, route + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')));
+}
+
+app.get('/', (req, res) => res.redirect('/app'));
 
 app.use(internalApi); // must come before supabaseAuth/demoAuth
 

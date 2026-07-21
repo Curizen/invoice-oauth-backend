@@ -4,14 +4,14 @@ import { esc, clearSbCookie } from '/js/util.js';
 const cfg = await fetch('/config').then((r) => r.json());
 const supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 const { data: { session } } = await supabase.auth.getSession();
-if (!session) { window.location.href = '/login.html'; }
+if (!session) { window.location.href = '/login'; }
 
 mountSidebar('employees', {
   email: session?.user?.email ?? '',
   onSignOut: async () => {
     await supabase.auth.signOut();
     clearSbCookie();
-    window.location.href = '/login.html';
+    window.location.href = '/login';
   },
   onChangePassword: async (password) => {
     const { error } = await supabase.auth.updateUser({ password });
@@ -20,7 +20,7 @@ mountSidebar('employees', {
 });
 
 const employeeId = new URLSearchParams(window.location.search).get('id');
-if (!employeeId) { window.location.href = '/employees.html'; }
+if (!employeeId) { window.location.href = '/employees'; }
 
 async function authedFetch(path, options = {}) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -150,7 +150,7 @@ function renderSalary(data) {
 
 async function load() {
   const res = await authedFetch(`/employees/${employeeId}`);
-  if (!res.ok) { window.location.href = '/employees.html'; return; }
+  if (!res.ok) { window.location.href = '/employees'; return; }
   const data = await res.json();
   employee = data.employee;
   $('title').textContent = `${employee.name}${employee.role ? ' — ' + employee.role : ''}`;

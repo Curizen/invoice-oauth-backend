@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard — Curizen Portal</title>
-<link rel="stylesheet" href="/portal.css" />
+<%- include('partials/head', { title: 'Dashboard' }) %>
 <style>
   /* Onboarding (zero connections) */
   #onboarding { max-width: 480px; margin: 4rem auto; text-align: center; }
@@ -75,9 +72,7 @@
 </style>
 </head>
 <body>
-  <div class="app-shell">
-    <div id="sidebar-root"></div>
-    <main class="content">
+<%- include('partials/shell-open') %>
       <div class="page-head">
         <div>
           <h1>Dashboard</h1>
@@ -100,10 +95,10 @@
         <div class="actions">
           <button class="btn connect-btn" data-provider="google">Add Gmail mailbox</button>
           <button class="btn secondary connect-btn" data-provider="microsoft">Add Outlook mailbox</button>
-          <a class="btn secondary" href="/voice.html">Voice invoice</a>
-          <a class="btn secondary" href="/subscriptions.html">Subscriptions</a>
-          <a class="btn secondary" href="/reports.html">Reports</a>
-          <a class="btn secondary" href="/employees.html">Employees</a>
+          <a class="btn secondary" href="/voice">Voice invoice</a>
+          <a class="btn secondary" href="/subscriptions">Subscriptions</a>
+          <a class="btn secondary" href="/reports">Reports</a>
+          <a class="btn secondary" href="/employees">Employees</a>
         </div>
 
         <!-- Where every invoice (Gmail or Outlook) is filed. OneDrive-only. -->
@@ -151,8 +146,7 @@
         <div class="list" id="list"></div>
         <pre id="output" style="display:none"></pre>
       </section>
-    </main>
-  </div>
+<%- include('partials/shell-close') %>
 
   <script type="module" src="/js/app.js"></script>
 </body>

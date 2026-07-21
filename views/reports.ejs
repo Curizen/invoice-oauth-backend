@@ -1,19 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Reports — Curizen Portal</title>
-<link rel="stylesheet" href="/portal.css" />
+<%- include('partials/head', { title: 'Reports' }) %>
 <style>
   .send { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
-  .send select { padding: 9px 10px; border: 1px solid #d7dae2; border-radius: 8px; font-size: 13.5px; }
+  .send select { padding: 9px 10px; border: 1px solid #ddd3bf; border-radius: 10px; font-size: 13.5px; }
 </style>
 </head>
 <body>
-  <div class="app-shell">
-    <div id="sidebar-root"></div>
-    <main class="content">
+<%- include('partials/shell-open') %>
       <div class="page-head">
         <div>
           <h1>Financial Reports</h1>
@@ -38,8 +33,7 @@
         <button id="send-btn" class="btn" type="button">Send</button>
         <span class="ok-text" id="send-status"></span>
       </div>
-    </main>
-  </div>
+<%- include('partials/shell-close') %>
 
 <script type="module" src="/js/reports.js"></script>
 </body>

@@ -4,14 +4,14 @@ import { esc, clearSbCookie } from '/js/util.js';
 const cfg = await fetch('/config').then((r) => r.json());
 const supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 const { data: { session } } = await supabase.auth.getSession();
-if (!session) { window.location.href = '/login.html'; }
+if (!session) { window.location.href = '/login'; }
 
 mountSidebar('subscriptions', {
   email: session?.user?.email ?? '',
   onSignOut: async () => {
     await supabase.auth.signOut();
     clearSbCookie();
-    window.location.href = '/login.html';
+    window.location.href = '/login';
   },
   onChangePassword: async (password) => {
     const { error } = await supabase.auth.updateUser({ password });

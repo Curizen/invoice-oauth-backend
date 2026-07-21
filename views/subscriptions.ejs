@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Subscriptions — Curizen Portal</title>
-<link rel="stylesheet" href="/portal.css" />
+<%- include('partials/head', { title: 'Subscriptions' }) %>
 <style>
   .field input[type="text"] { min-width: 180px; }
   .field input.cur { width: 80px; text-transform: uppercase; }
@@ -13,9 +10,7 @@
 </style>
 </head>
 <body>
-  <div class="app-shell">
-    <div id="sidebar-root"></div>
-    <main class="content">
+<%- include('partials/shell-open') %>
       <div class="page-head">
         <div>
           <h1>Subscriptions</h1>
@@ -40,8 +35,7 @@
         <p class="muted-text" id="s-summary" style="margin-bottom:14px"></p>
         <div id="s-list"></div>
       </div>
-    </main>
-  </div>
+<%- include('partials/shell-close') %>
 
 <script type="module" src="/js/subscriptions.js"></script>
 </body>

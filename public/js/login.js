@@ -15,7 +15,7 @@ const siSubmit = document.getElementById('si-submit');
 // Set the cookie the same way app.html does, then hand off to the dashboard.
 function completeLogin(session) {
   setSbCookie(session.access_token);
-  window.location.href = '/app.html';
+  window.location.href = '/app';
 }
 
 // Already signed in? Skip straight to the app.
